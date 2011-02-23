@@ -18,6 +18,11 @@ MySimpleMandelbrotCL.Mod
 MyMandelbrotCL.Mod
 ~
 
+MyMandelbrotCL.Open ~
+
+
+
+MySimpleMandelbrotCL.Open ~
 
 
 
