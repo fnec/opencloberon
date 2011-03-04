@@ -30,7 +30,6 @@ TYPE
 		objmem   : CL.cl_mem;  (* device memory used for the input array *)
 		global  : IVector; (* global domain size for our calculation *)
 		kernelsource: CL.PChar;  
-		kernelname: ARRAY 128 OF CHAR;
 		Left, Top, Bottom, Right: REAL;
 		Stride: LONGINT;
 		 inited: BOOLEAN;
@@ -80,25 +79,25 @@ TYPE
 			err := CL.clGetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, S.ADR(deviceids), 0);
 
 			
-			context := CL.clCreateContext(NIL, 1, S.ADR(deviceids), NIL , 0, err);
+			context := CL.clCreateContext(0, 1, S.ADR(deviceids), NIL , 0, err);
 			commands := CL.clCreateCommandQueue(context, deviceids, 0, err);
 			
 			kernelsource := Utils.LoadProgramSource("Mandelbrot.cl", "");
-			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), NIL, err);
+			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), 0, err);
 
 		(*	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf), bufwritten);
 			KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln; 
 			KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln; 
 			
 		*)					
-			err := CL.clBuildProgram(prog, 0, NIL, NIL, NIL, 0);
+			err := CL.clBuildProgram(prog, 0, NIL, 0, 0, 0);
 
 (*			err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);
 			KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln; 
 			KernelLog.String("buf= "); KernelLog.String(buf); KernelLog.Ln; 
 *)				
-			kernelname := "Mandelbrot";
-			kernel := CL.clCreateKernel(prog, S.ADR(kernelname[0]), err); 
+
+			kernel := CL.clCreateKernel(prog, "Mandelbrot", err); 
 						
 			objmem := CL.clCreateBuffer(context,  CL.MEM_WRITE_ONLY, WindowWidth*WindowHeight*4 , 0, err);
 			
@@ -149,9 +148,9 @@ TYPE
 		BEGIN
 			IF inited THEN	
 				Kernel.SetTimer(timer,0);
-				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  S.ADR(global[0]), 0, 0, NIL, NIL);
+				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  S.ADR(global[0]), 0, 0, 0, 0);
 				err := CL.clFinish(commands);
-				err := CL.clEnqueueReadBuffer( commands, objmem, CL.CL_TRUE, 0,WindowWidth*WindowHeight*4  , mimage.adr, 0, NIL, NIL);
+				err := CL.clEnqueueReadBuffer( commands, objmem, CL.CL_TRUE, 0,WindowWidth*WindowHeight*4  , mimage.adr, 0, 0, 0);
 				
 				elapsed := Kernel.Elapsed(timer);
 				str1:= "MandelbrotCL:  ";
@@ -194,6 +193,6 @@ BEGIN
 	Modules.InstallTermHandler(Cleanup);
 END MyMandelbrotCL.
 
-SystemTools.Free MyMandelbrotCL OpenCLUtils OpenCL ~
+SystemTools.Free MyMandelbrotCL~
 
 MyMandelbrotCL.Open ~

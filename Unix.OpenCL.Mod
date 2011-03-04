@@ -51,7 +51,7 @@ TYPE
   csize_t* = LONGINT;  
   Pcsize_t* = POINTER TO ARRAY OF csize_t;
   
-  intptr_t* = POINTER TO ARRAY OF ADDRESS;
+  intptr_t* = csize_t;
   
   cl_char*     = CHAR; (*-127..+128 *)   
   cl_uchar*    = CHAR;  (* 0..255 *)  
@@ -200,15 +200,15 @@ TYPE
 
 TYPE
 
-  cl_platform_id*    = POINTER TO RECORD END;
-  cl_device_id*      = POINTER TO RECORD END; 
-  cl_context*        = LONGINT;
-  cl_command_queue*  =  LONGINT;
-  cl_mem*            = LONGINT;
-  cl_program*        = LONGINT;
-  cl_kernel*         = LONGINT;
-  cl_event*          = LONGINT;
-  cl_sampler*        = LONGINT;
+  cl_platform_id*    =csize_t; 
+  cl_device_id*      = csize_t; 
+  cl_context*        = csize_t;
+  cl_command_queue*  =  csize_t;
+  cl_mem*            = csize_t;
+  cl_program*        = csize_t;
+  cl_kernel*         = csize_t;
+  cl_event*          = csize_t;
+  cl_sampler*        = csize_t;
 
 
   Pcl_platform_id*    = POINTER TO ARRAY OF cl_platform_id;
@@ -233,7 +233,7 @@ TYPE
   cl_device_exec_capabilities* = cl_bitfield;
   cl_command_queue_properties* = cl_bitfield;
 
-  cl_context_properties*   = intptr_t;
+  cl_context_properties*   = RECORD name*: cl_uint; value*: csize_t END;
   cl_context_info*         = cl_uint;
   cl_command_queue_info*   = cl_uint;
   cl_channel_order*        = cl_uint;
@@ -255,18 +255,14 @@ TYPE
   cl_command_type*           = cl_uint;
   cl_profiling_info*         = cl_uint;
 
-  Tcl_image_format* =  RECORD 
+  cl_image_format* =  RECORD 
     image_channel_order*     : cl_channel_order;
     image_channel_data_type* : cl_channel_type;
   END ;
-  cl_image_format* = Tcl_image_format;
-
+  Pcl_image_format*        = POINTER TO ARRAY OF cl_image_format;
+ 
   Pcl_context_properties*  = POINTER TO ARRAY OF cl_context_properties;
-  Pcl_image_format*        = POINTER TO cl_image_format;
-
-
-
-
+ 
 CONST
 (* Error Codes *)
    SUCCESS* 							=  0;
@@ -640,12 +636,12 @@ VAR
  
   (* Platform APIs *)
 
- clGetPlatformIDs- : PROCEDURE {C} (  num_entries   : cl_uint;     platforms     : ADDRESS;   num_platforms : ADDRESS): cl_int; 
-clGetPlatformInfo- :  PROCEDURE {C} ( iplatform : cl_platform_id;  param_name : cl_platform_info;  value_size : csize_t;  value  : ADDRESS;  VAR size_ret : csize_t  ): cl_int; 
+clGetPlatformIDs- : PROCEDURE {C} (  num_entries   : cl_uint;     platforms     : ADDRESS;   num_platforms : ADDRESS): cl_int; 
+clGetPlatformInfo- :  PROCEDURE {C} ( iplatform : cl_platform_id;  param_name : cl_platform_info;  value_size : csize_t;  value  : ADDRESS;  size_ret : ADDRESS (* csize_t *)  ): cl_int; 
 
 (*  Device APIs *)
- clGetDeviceIDs- : PROCEDURE {C} ( iplatform :  cl_platform_id ; device_type: cl_device_type; num_entries: cl_uint; devices : ADDRESS;    num_devices :  ADDRESS): cl_int; 
-clGetDeviceInfo- : PROCEDURE {C} (device: cl_device_id; param_name: cl_device_info; value_size: csize_t; value: ADDRESS; VAR size_ret : csize_t): cl_int;
+clGetDeviceIDs- : PROCEDURE {C} ( iplatform :  cl_platform_id ; device_type: cl_device_type; num_entries: cl_uint; devices : ADDRESS;    num_devices :  ADDRESS): cl_int; 
+clGetDeviceInfo- : PROCEDURE {C} (device: cl_device_id; param_name: cl_device_info; value_size: csize_t; value: ADDRESS; size_ret : ADDRESS (* csize_t *)): cl_int;
 
 (*  Context APIs *)
 TYPE
@@ -654,14 +650,14 @@ TYPE
 
 
 VAR
-clCreateContext- : PROCEDURE {C}(  properties : Pcl_context_properties; num_devices  : cl_uint;  devices : ADDRESS;  notify : TContextNotify; user_data: ADDRESS; errcode_ret : ADDRESS ): cl_context;
+clCreateContext- : PROCEDURE {C}(  properties : ADDRESS (*Pcl_context_properties*) ; num_devices  : cl_uint;  devices : ADDRESS;  notify : TContextNotify; user_data: ADDRESS; VAR errcode_ret :  cl_int): cl_context;
 
 clCreateContextFromType- : PROCEDURE {C} (
-  properties      : Pcl_context_properties;
+  properties      : ADDRESS; (*Pcl_context_properties *)
   device_type     : cl_device_type;
   notify          : TContextNotify;
   user_data       : ADDRESS;
-  VAR errcode_ret : cl_int
+  VAR errcode_ret :  cl_int
   ): cl_context;
 
 clRetainContext - : PROCEDURE {C} (context: cl_context): cl_int;
@@ -673,11 +669,11 @@ clRetainContext - : PROCEDURE {C} (context: cl_context): cl_int;
   param_name    : cl_context_info;
   value_size    : csize_t;
   value         : ADDRESS;
-  VAR size_ret  : csize_t
+  size_ret  : ADDRESS (* csize_t *)
   ): cl_int;
 
 (*  Command Queue APIs *)
-clCreateCommandQueue- : PROCEDURE {C}( context : cl_context;  device : cl_device_id;  properties : cl_command_queue_properties;  errcode_ret: ADDRESS  ): cl_command_queue;
+clCreateCommandQueue- : PROCEDURE {C}( context : cl_context;  device : cl_device_id;  properties : cl_command_queue_properties;  VAR errcode_ret:  cl_int ): cl_command_queue;
 
 clRetainCommandQueue- : PROCEDURE {C} (command_queue : cl_command_queue): cl_int; 
 clReleaseCommandQueue- : PROCEDURE {C} (command_queue : cl_command_queue): cl_int; 
@@ -687,7 +683,7 @@ clGetCommandQueueInfo- : PROCEDURE {C}(
   param_name   : cl_command_queue_info;
   value_size   : csize_t;
   value        : ADDRESS;
-  VAR size_ret : csize_t
+  size_ret : ADDRESS (* csize_t *)
   ): cl_int;
 
 clSetCommandQueueProperty- : PROCEDURE {C}(
@@ -700,30 +696,30 @@ clSetCommandQueueProperty- : PROCEDURE {C}(
 
 
 (*  Memory Object APIs *)
- clCreateBuffer- : PROCEDURE {C}(context : cl_context;  flags : cl_mem_flags; size : csize_t; host_ptr : ADDRESS;  VAR errcode_ret  : cl_int ): cl_mem; 
+ clCreateBuffer- : PROCEDURE {C}(context : cl_context;  flags : cl_mem_flags; size : csize_t; host_ptr : ADDRESS; VAR errcode_ret	: cl_int ): cl_mem; 
 
 clCreateImage2D- : PROCEDURE {C}(
   context         : cl_context;
   flags   	      : cl_mem_flags;
-  image_format    : Pcl_image_format;
+  CONST image_format    : cl_image_format; 
   image_width     : csize_t;
   image_height    : csize_t;
   image_row_pitch : csize_t;
   host_ptr        : ADDRESS;
-  VAR errcode_ret : cl_int
+   VAR errcode_ret		: cl_int 
   ): cl_mem; 
 
 clCreateImage3D- : PROCEDURE {C}(
   context 			    : cl_context;
   flags 			      : cl_mem_flags;
-  image_format      : Pcl_image_format;
+  CONST image_format      : cl_image_format;
   image_width 	    : csize_t;
   image_height      : csize_t;
   image_depth 	    : csize_t;
   image_row_pitch 	: csize_t;
   image_slice_pitch : csize_t;
   host_ptr 		      : ADDRESS;
-  VAR errcode_ret		: cl_int
+   VAR errcode_ret		: cl_int 
   ): cl_mem;
 
 clRetainMemObject- : PROCEDURE {C} (memobj: cl_mem): cl_int; 
@@ -735,8 +731,8 @@ clGetSupportedImageFormats- : PROCEDURE {C}(
   flags 			    : cl_mem_flags;
   image_type 		  : cl_mem_object_type;
   num_entries 		: cl_uint;
-  image_formats   : Pcl_image_format;
-  VAR num_formats : cl_uint
+  image_formats   : ADDRESS; (* Pcl_image_format *)
+   num_formats : ADDRESS
   ): cl_int;
 
  clGetMemObjectInfo- : PROCEDURE {C} (
@@ -744,7 +740,7 @@ clGetSupportedImageFormats- : PROCEDURE {C}(
   param_name    : cl_mem_info;
   value_size    : csize_t;
   value     	  : ADDRESS;
-  VAR size_ret  : csize_t
+   size_ret  : ADDRESS (* csize_t *)
   ): cl_int;
 
 clGetImageInfo- : PROCEDURE {C}(
@@ -752,7 +748,7 @@ clGetImageInfo- : PROCEDURE {C}(
   param_name    : cl_image_info;
   value_size    : csize_t;
   value         : ADDRESS;
-  VAR size_ret  : csize_t
+   size_ret  : ADDRESS (* csize_t *)
   ): cl_int; 
 
 (*  Sampler APIs *)
@@ -761,7 +757,7 @@ clCreateSampler- : PROCEDURE {C} (
   is_norm_coords  : cl_bool;
   addr_mode       : cl_addressing_mode;
   filter_mode     : cl_filter_mode;
-  VAR errcode_ret : cl_int
+   VAR errcode_ret :  cl_int
   ): cl_sampler; 
 
 clRetainSampler- : PROCEDURE {C} (sampler: cl_sampler): cl_int;
@@ -773,12 +769,12 @@ clRetainSampler- : PROCEDURE {C} (sampler: cl_sampler): cl_int;
   param_name   : cl_sampler_info;
   value_size   : csize_t;
   value        : ADDRESS;
-  VAR size_ret : csize_t
+   size_ret : ADDRESS (* csize_t *)
   ): cl_int;
 
 
 (*  Program Object APIs *)
-clCreateProgramWithSource- : PROCEDURE {C}( context  : cl_context;  count  : cl_uint; strings : ADDRESS; lengths  : Pcsize_t;   VAR errcode_ret : cl_int  ): cl_program; 
+clCreateProgramWithSource- : PROCEDURE {C}( context  : cl_context;  count  : cl_uint; strings : ADDRESS; lengths  : ADDRESS (*Pcsize_t*);   VAR errcode_ret :  cl_int  ): cl_program; 
 
 TYPE
   PByte = POINTER TO ARRAY OF CHAR;
@@ -789,10 +785,10 @@ VAR
 clCreateProgramWithBinary- : PROCEDURE {C} (
   context     : cl_context;
   num_devices : cl_uint;
-  device_list : Pcl_device_id;
-  lengths     : Pcsize_t;
-  binaries    : PPByte;
-  VAR binary_status: cl_int;
+  device_list : ADDRESS; (*Pcl_device_id *)
+  lengths     : ADDRESS; (*Pcsize_t *)
+  binaries    : ADDRESS; (*PPByte *)
+  binary_status: ADDRESS; (* cl_int *)
   VAR errcode_ret: cl_int
   ): cl_program;
 
@@ -807,7 +803,7 @@ TYPE
 
 VAR
 
-clBuildProgram- : PROCEDURE {C} (iprogram: cl_program; num_devices: cl_uint; device_list: Pcl_device_id; options: PChar; notify: TProgramNotify;  user_data: ADDRESS ): cl_int;
+clBuildProgram- : PROCEDURE {C} (iprogram: cl_program; num_devices: cl_uint; device_list: Pcl_device_id; options: ADDRESS (*PChar*); notify: ADDRESS (*TProgramNotify*);  user_data: ADDRESS ): cl_int;
 
 
 clUnloadCompiler- : PROCEDURE {C}(): cl_int;
@@ -817,7 +813,7 @@ clGetProgramInfo- : PROCEDURE {C} (
   param_name: cl_program_info; 
   value_size: csize_t;
   value         : ADDRESS;
-  VAR  size_ret  : csize_t
+   size_ret  : ADDRESS (* csize_t *)
   ): cl_int;
 
 clGetProgramBuildInfo- : PROCEDURE {C} (
@@ -826,17 +822,17 @@ clGetProgramBuildInfo- : PROCEDURE {C} (
   param_name    : cl_program_build_info;
   value_size    : csize_t;
   value         : ADDRESS;
-  VAR size_ret  : csize_t
+   size_ret  : ADDRESS (* csize_t *)
   ): cl_int; 
 
 (*  Kernel Object APIs *)
-clCreateKernel- : PROCEDURE {C}(iprogram: cl_program;   kernel_name: ADDRESS;   VAR errcode_ret: cl_int ): cl_kernel; 
+clCreateKernel- : PROCEDURE {C}(iprogram: cl_program;   CONST kernel_name: ARRAY OF CHAR;   VAR  errcode_ret: cl_int ): cl_kernel; 
 
 clCreateKernelsInProgram- : PROCEDURE {C} (
   iprogram      : cl_program;
   num_kernels   : cl_uint;
-  kernels       : Pcl_kernel;
-  VAR num_ret   : cl_uint
+  kernels       : ADDRESS; (*Pcl_kernel *)
+  num_ret   : ADDRESS (* cl_uint *)
   ): cl_int; 
 
  clRetainKernel- : PROCEDURE {C} (kernel: cl_kernel): cl_int;
@@ -855,15 +851,15 @@ clGetKernelInfo- : PROCEDURE {C} (
   param_name    : cl_kernel_info;
   value_size    : csize_t;
   value         : ADDRESS;
-  VAR size_ret  : csize_t
+  size_ret  : ADDRESS (* csize_t *)
   ): cl_int;
 
-clGetKernelWorkGroupInfo- : PROCEDURE {C}(kernel: cl_kernel; device: cl_device_id; param_name: cl_kernel_work_group_info; value_size: csize_t; value: ADDRESS; size_ret : Pcsize_t ): cl_int; 
+clGetKernelWorkGroupInfo- : PROCEDURE {C}(kernel: cl_kernel; device: cl_device_id; param_name: cl_kernel_work_group_info; value_size: csize_t; value: ADDRESS; size_ret : ADDRESS ): cl_int; 
 
 (*  Event Object APIs *)
 clWaitForEvents- : PROCEDURE {C} (
   num_events  : cl_uint;
-  event_list  : cl_event
+  event_list  : ADDRESS
   ): cl_int; 
 
  clGetEventInfo- : PROCEDURE {C} (
@@ -871,7 +867,7 @@ clWaitForEvents- : PROCEDURE {C} (
   param_name    : cl_event_info;
   value_size    : csize_t;
   value         : ADDRESS;
-  VAR size_ret  : csize_t
+  size_ret  : ADDRESS (* csize_t *)
   ): cl_int; 
 
 clRetainEvent- : PROCEDURE {C} (event: cl_event): cl_int; 
@@ -884,7 +880,7 @@ clGetEventProfilingInfo - : PROCEDURE {C} (
   param_name    : cl_profiling_info;
   value_size    : csize_t;
   value         : ADDRESS;
-  VAR size_ret  : csize_t
+  size_ret  : ADDRESS (* csize_t *)
   ): cl_int; 
 
 (*  Flush and Finish APIs *)
@@ -901,16 +897,16 @@ clEnqueueReadBuffer- : PROCEDURE {C} (
   cb            : csize_t;
   ptr           : ADDRESS;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
+  events_list   :ADDRESS ;
+  event         : ADDRESS
   ): cl_int; 
 
 clEnqueueWriteBuffer - : PROCEDURE {C} ( command_queue: cl_command_queue; buffer : cl_mem;  blocking_write : cl_bool; offset : csize_t;
   cb              : csize_t;
   ptr             : ADDRESS;
   num_events      : cl_uint;
-  events_list     : Pcl_event;
-  event           : Pcl_event
+  events_list     : ADDRESS;
+  event           : ADDRESS
   ): cl_int;
 
 clEnqueueCopyBuffer- : PROCEDURE {C} (
@@ -921,60 +917,60 @@ clEnqueueCopyBuffer- : PROCEDURE {C} (
   dst_offset    : csize_t;
   cb            : csize_t;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
+  events_list   : ADDRESS; (*Pcl_event*)
+  event         : ADDRESS (*Pcl_event *)
   ): cl_int;
 
 clEnqueueReadImage - : PROCEDURE {C} (
   command_queue : cl_command_queue;
   image         : cl_mem;
   blocking_read : cl_bool;
-  origin        : Pcsize_t;
-  region        : Pcsize_t;
+  origin        : ADDRESS;
+  region        : ADDRESS;
   row_pitch     : csize_t;
   slice_pitch   : csize_t;
   ptr           : ADDRESS;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
+  events_list   : ADDRESS; (*Pcl_event; *)
+  event         : ADDRESS (*Pcl_event*)
   ): cl_int; 
 
 clEnqueueWriteImage - : PROCEDURE {C} (
   command_queue   : cl_command_queue;
   image           : cl_mem;
   blocking_write  : cl_bool;
-  origin          : Pcsize_t;
-  region          : Pcsize_t;
+  origin          : ADDRESS;
+  region          : ADDRESS;
   row_pitch       : csize_t;
   slice_pitch     : csize_t;
   ptr             : ADDRESS;
   num_events      : cl_uint;
-  events_list     : Pcl_event;
-  event           : Pcl_event
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS (*Pcl_event*)
   ): cl_int; 
 
 clEnqueueCopyImage- : PROCEDURE {C} (
   command_queue : cl_command_queue;
   src_image     : cl_mem;
   dst_image     : cl_mem;
-  src_origin    : Pcsize_t;
-  dst_origin    : Pcsize_t;
-  region        : Pcsize_t;
+  src_origin    : ADDRESS;
+  dst_origin    : ADDRESS;
+  region        : ADDRESS;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS (*Pcl_event*)
   ): cl_int;
 
 clEnqueueCopyImageToBuffer- : PROCEDURE {C} (
   command_queue : cl_command_queue;
   src_image     : cl_mem;
   dst_buffre    : cl_mem;
-  src_origin    : Pcsize_t;
-  region        : Pcsize_t;
+  src_origin    : ADDRESS;
+  region        : ADDRESS;
   dst_offset    : csize_t;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS (*Pcl_event*)
   ): cl_int; 
 
 clEnqueueCopyBufferToImage- : PROCEDURE {C}(
@@ -982,11 +978,11 @@ clEnqueueCopyBufferToImage- : PROCEDURE {C}(
   src_buffer    : cl_mem;
   dst_image     : cl_mem;
   src_offset    : csize_t;
-  dst_origin    : Pcsize_t;
-  region        : Pcsize_t;
+  dst_origin    : ADDRESS;
+  region        : ADDRESS;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS (*Pcl_event*)
   ): cl_int;
 
 clEnqueueMapBuffer- : PROCEDURE {C}(
@@ -997,9 +993,9 @@ clEnqueueMapBuffer- : PROCEDURE {C}(
   offset          : csize_t;
   cb              : csize_t;
   num_events      : cl_uint;
-  events_list     : Pcl_event;
-  event           : Pcl_event;
-  VAR errcode_ret : cl_int
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS; (*Pcl_event*)
+   VAR errcode_ret		: cl_int 
   ): ADDRESS;
 
 clEnqueueMapImage- : PROCEDURE {C}(
@@ -1007,14 +1003,14 @@ clEnqueueMapImage- : PROCEDURE {C}(
   image           : cl_mem;
   blocking_map    : cl_bool;
   map_flags       : cl_map_flags;
-  origin          : Pcsize_t;
-  region          : Pcsize_t;
+  origin          : ADDRESS;
+  region          : ADDRESS;
   row_pitch       : csize_t;
   slice_pitch     : csize_t;
   num_events      : cl_uint;
-  events_list     : Pcl_event;
-  event           : Pcl_event;
-  VAR errcode_ret : cl_int
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS; (*Pcl_event*)
+   VAR errcode_ret		: cl_int 
   ): ADDRESS; 
 
 clEnqueueUnmapMemObject- : PROCEDURE {C}(
@@ -1022,9 +1018,9 @@ clEnqueueUnmapMemObject- : PROCEDURE {C}(
   memobj        : cl_mem;
   mapped_ptr    : ADDRESS;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
-  ): cl_int; 
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS (*Pcl_event*)
+   ): cl_int; 
 
 clEnqueueNDRangeKernel- : PROCEDURE {C}(
   command_queue : cl_command_queue;
@@ -1034,16 +1030,16 @@ clEnqueueNDRangeKernel- : PROCEDURE {C}(
   global_size,
   local_size    : ADDRESS;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
+  events_list   : ADDRESS;
+  event         : ADDRESS
   ): cl_int;
 
 clEnqueueTask- : PROCEDURE {C}(
   command_queue : cl_command_queue;
   kernel        : cl_kernel;
   num_events    : cl_uint;
-  events_list   : Pcl_event;
-  event         : Pcl_event
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS (*Pcl_event*)
   ): cl_int; 
 
 TYPE
@@ -1056,15 +1052,15 @@ VAR
   args            : ADDRESS;
   cb_args         : csize_t;
   num_mem_objects : cl_uint;
-  mem_list        : Pcl_mem;
+  mem_list        : ADDRESS; (*Pcl_mem *)
   args_mem_loc    : ADDRESS;
   num_events      : cl_uint;
-  event_wait_list : Pcl_event;
-  event           : Pcl_event
-  ): cl_int;
+  events_list     : ADDRESS; (*Pcl_event;*)
+  event           : ADDRESS (*Pcl_event*)
+   ): cl_int;
 
-clEnqueueMarker- : PROCEDURE {C} (command_queue: cl_command_queue; event: Pcl_event ): cl_int;
-clEnqueueWaitForEvents- : PROCEDURE {C} (command_queue: cl_command_queue; num_events: cl_uint; event_list: Pcl_event ): cl_int;
+clEnqueueMarker- : PROCEDURE {C} (command_queue: cl_command_queue; event: ADDRESS ): cl_int;
+clEnqueueWaitForEvents- : PROCEDURE {C} (command_queue: cl_command_queue; num_events: cl_uint; event_list: ADDRESS ): cl_int;
 clEnqueueBarrier- : PROCEDURE {C} (command_queue: cl_command_queue): cl_int;
 
 

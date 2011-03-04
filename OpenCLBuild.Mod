@@ -118,7 +118,7 @@ TYPE
 	PROCEDURE CLBuild(sender, data : ANY);
 	VAR 
 	      options: ARRAY 128 OF CHAR;
-	      err, bufwritten: LONGINT;
+	      err: LONGINT;
 	      pbuf: CL.PChar;
      		prog      : CL.cl_program;       (* compute program *)
      		status: CL.cl_build_status; 
@@ -130,17 +130,18 @@ TYPE
 	 		optionscleditor.GetAsString(options);
 	 		
 	 		pbuf := S.VAL(CL.PChar, S.ADR(buf[0]));
-			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), NIL, err);
+			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, err);
 			IF prog # 0 THEN		
 				
-				err := CL.clBuildProgram(prog, 0, NIL, S.VAL(CL.PChar,S.ADR(options)), NIL, 0);
+				err := CL.clBuildProgram(prog, 0, NIL, S.ADR(options[0]), 0, 0);
 				KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
+					
 				IF err  # CL.SUCCESS THEN
 						KernelLog.String("Build Status = "); KernelLog.Int(status, 0); KernelLog.Ln; 
-						err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(log), S.ADR(log[0]), bufwritten);
+						err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(log), S.ADR(log[0]), 0);
 						logcleditor.SetAsString(log);
 				ELSE
-					err := CL.clGetProgramInfo(prog, CL.PROGRAM_BINARY_SIZES, S.SIZEOF(CL.csize_t), S.ADR(binarysize), bufwritten);
+					err := CL.clGetProgramInfo(prog, CL.PROGRAM_BINARY_SIZES, S.SIZEOF(CL.csize_t), S.ADR(binarysize), 0);
 					IF err = CL.SUCCESS THEN
 					  KernelLog.String("Program Binary Size= "); KernelLog.Int(binarysize, 0);  KernelLog.String(" bytes."); KernelLog.Ln; 
 					END;
@@ -157,16 +158,16 @@ TYPE
 		wind := NIL
 	END Close;
 
-		PROCEDURE Handle(VAR x: WMMessages.Message);
-		BEGIN
-			IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) THEN
-				IF (x.ext IS KillerMsg) THEN Close
-				ELSIF (x.ext IS WMRestorable.Storage) THEN
-					x.ext(WMRestorable.Storage).Add("OpenCLBuild", "OpenCLBuild.Restore", SELF, NIL)
-				ELSE Handle^(x)
-				END
+	PROCEDURE Handle(VAR x: WMMessages.Message);
+	BEGIN
+		IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) THEN
+			IF (x.ext IS KillerMsg) THEN Close
+			ELSIF (x.ext IS WMRestorable.Storage) THEN
+				x.ext(WMRestorable.Storage).Add("OpenCLBuild", "OpenCLBuild.Restore", SELF, NIL)
 			ELSE Handle^(x)
 			END
+		ELSE Handle^(x)
+		END
 		END Handle;
 			
 	BEGIN
@@ -180,19 +181,38 @@ VAR
 		deviceids : CL.cl_device_id;
 		context : CL.cl_context;
 		commands : CL.cl_command_queue;  
-             clinited: BOOLEAN;
+          clinited: BOOLEAN;
  		buf: ARRAY 32768 OF CHAR; (* if kernel size is not enough increase size  *)
  		log: ARRAY 1024 OF CHAR; 
              
 PROCEDURE InitCL;
-VAR err, err1: LONGINT;
+VAR err, err1, err2, err3: LONGINT;
 BEGIN
+	clinited := FALSE;
 	err := CL.clGetPlatformIDs( 1, S.ADR(platformids), 0 ); 
-	err1 := CL.clGetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, S.ADR(deviceids), 0);			
-	context := CL.clCreateContext(NIL, 1, S.ADR(deviceids), NIL , 0, err);
-	commands := CL.clCreateCommandQueue(context, deviceids, 0, err);
+	IF err # CL.SUCCESS THEN 
+		KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln;  
+		RETURN
+	END;
+	err1 := CL.clGetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, S.ADR(deviceids), 0);
+	IF err1 # CL.SUCCESS THEN 
+		KernelLog.String(Utils.ErrorToStr(err1)); KernelLog.Ln;  
+		RETURN
+	END;
 	
-      clinited := (err = 0) & (err1 = 0) & (context # 0) & (commands # 0);
+	context := CL.clCreateContext(0, 1, S.ADR(deviceids), NIL , 0, err2);
+	IF err2# CL.SUCCESS THEN 
+		KernelLog.String(Utils.ErrorToStr(err2)); KernelLog.Ln;  
+		RETURN
+	END;
+	
+	commands := CL.clCreateCommandQueue(context, deviceids, 0, err3);
+		IF err3 # CL.SUCCESS THEN 
+		KernelLog.String(Utils.ErrorToStr(err3)); KernelLog.Ln;  
+		RETURN
+	END;
+
+      clinited := (err = 0) & (err1 = 0) & (err2 = 0) & (err3 = 0) & (context # 0) & (commands # 0);
 END InitCL;
 
 (* open build test Window *)
@@ -257,7 +277,7 @@ Modules.InstallTermHandler(Cleanup);
 InitCL;
 END OpenCLBuild.
 
-SystemTools.Free OpenCLBuild OpenCLUtils OpenCL~ 
+SystemTools.Free OpenCLBuild ~ 
 
 OpenCLBuild.Open ~ 
 

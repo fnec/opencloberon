@@ -7,10 +7,8 @@ TYPE
 	DynamicString = DynamicStrings.DynamicString;
 	  	
 VAR 
-	wr: Streams.Writer;
-	kernelsource: Strings.String;               
-	kernelname: ARRAY 64 OF CHAR;
-      CRLF: ARRAY 3 OF CHAR;
+	wr: Streams.Writer;               
+      CRLF: ARRAY 2 OF CHAR;
 
 (* Create kernels using Streams.Writer *)      
 PROCEDURE MyKernelSource():CL.PChar;
@@ -69,6 +67,8 @@ VAR
 	context : CL.cl_context;
 	commands : CL.cl_command_queue;  
 	
+	kernelsource: Strings.String;
+		
 	prog      : CL.cl_program;       (* compute program *)
 	kernel    : CL.cl_kernel;         (* compute kernel *)
 	input   : CL.cl_mem;  (* device memory used for the input array *)
@@ -81,7 +81,8 @@ VAR
 	buf:  ARRAY 1024 OF  CHAR;
 	bufwritten: LONGINT;
 	dumy: LONGINT;
-  
+      pbuf: CL.PChar;
+      
 BEGIN
 	(*Fill our data set with float values *)
 	count := DATA_SIZE;
@@ -102,7 +103,7 @@ BEGIN
 		RETURN
 	END;     
 	
-	context := CL.clCreateContext(NIL, 1, S.ADR(deviceids), NIL , 0, err);
+	context := CL.clCreateContext(0, 1, S.ADR(deviceids), NIL , 0, err);
 	wr.String("clContext : "); wr.String(Utils.ErrorToStr(err)); wr.Ln; wr.Update; 
 	IF context = 0 THEN 
 		wr.String('Error: Cannot create context!'); wr.Ln; wr.Update;
@@ -124,9 +125,11 @@ BEGIN
 		wr.String(" File Load Error"); wr.Ln; wr.Update; wr.Ln; 
 		RETURN;
 	END;  
-
+buf :=" __kernel void square(__global float* input, __global float* output, const unsigned int count)   {  int i  = get_global_id(0);  if(i < count)      output[i] = input[i] * input[i]; } ";
+pbuf := S.VAL(CL.PChar, S.ADR(buf[0]));
     (* Create the compute program from the source buffer *)
-	prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), NIL, err);
+(*	prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), NIL, err);*)
+prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	wr.String("clCreateProgramWithSource : "); wr.String(Utils.ErrorToStr(err)); wr.Ln;  wr.Update;
 	IF prog = 0 THEN 
 		wr.String("prog NIL: "); wr.String(Utils.ErrorToStr(err)); wr.Ln; wr.Update;  
@@ -153,7 +156,7 @@ BEGIN
 	wr.String("numdevices dumy= "); wr.Int(dumy, 0); wr.Ln; 
    
 	(* Build the program executable *)
-	err := CL.clBuildProgram(prog, 0, NIL, NIL, NIL, 0);
+	err := CL.clBuildProgram(prog, 0, NIL, 0, 0, 0);
 	wr.String("clBuildProgram : "); wr.String(Utils.ErrorToStr(err)); wr.Ln;  wr.Update;
 	IF err # CL.SUCCESS THEN
 		wr.String('Error: Failed to build program executable!'); wr.Ln; wr.Update; 
@@ -167,17 +170,16 @@ BEGIN
 	END;
 	wr.String("bufwritten= "); wr.Int(bufwritten, 0); wr.Ln;  
 	wr.String("Prog Build Info: "); wr.String(buf); wr.Ln; wr.Update;
-  
-	kernelname := "square";
+ 
 	 (* Create the compute kernel in the program we wish to run *)
-	kernel := CL.clCreateKernel(prog, S.ADR(kernelname[0]), err); 
+	kernel := CL.clCreateKernel(prog, "square", err); 
 	wr.String("clCreateKernel : "); wr.String(Utils.ErrorToStr(err)); wr.Ln;  wr.Update;
 	IF kernel=0 THEN 
 		wr.String("kernel NIL: "); wr.String(Utils.ErrorToStr(err)); wr.Ln; wr.Update;  
 		RETURN 
 	END;
 
-	err := CL.clGetKernelWorkGroupInfo(kernel, deviceids,  CL.KERNEL_WORK_GROUP_SIZE, S.SIZEOF(LONGINT), S.ADR(local), NIL);
+	err := CL.clGetKernelWorkGroupInfo(kernel, deviceids,  CL.KERNEL_WORK_GROUP_SIZE, S.SIZEOF(LONGINT), S.ADR(local), 0);
 	wr.String("clGetKernelWorkGroupInfo : "); wr.String(Utils.ErrorToStr(err)); wr.Ln; 	
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: clGetKernelWorkGroupInfo!'); wr.Ln; wr.Update;
@@ -197,7 +199,7 @@ BEGIN
 	END;
 
 	(* Write our data set into the input array in device memory *)
-	err := CL.clEnqueueWriteBuffer(commands, input, CL.CL_TRUE, 0, S.SIZEOF(REAL) * count, S.ADR(data[0]), 0, NIL, NIL);
+	err := CL.clEnqueueWriteBuffer(commands, input, CL.CL_TRUE, 0, S.SIZEOF(REAL) * count, S.ADR(data[0]), 0, 0, 0);
 	wr.String("clEnqueueWriteBuffer : "); wr.String(Utils.ErrorToStr(err)); wr.Ln; 	
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to write source array!'); wr.Ln; wr.Update;
@@ -220,7 +222,7 @@ BEGIN
 	END;
        
 	(* Get the maximum work group size for executing the kernel on the device *)
-	err := CL.clGetKernelWorkGroupInfo(kernel, deviceids,  CL.KERNEL_WORK_GROUP_SIZE, S.SIZEOF(LONGINT), S.ADR(local), NIL);
+	err := CL.clGetKernelWorkGroupInfo(kernel, deviceids,  CL.KERNEL_WORK_GROUP_SIZE, S.SIZEOF(LONGINT), S.ADR(local), 0);
 	wr.String("clGetKernelWorkGroupInfo : "); wr.String(Utils.ErrorToStr(err)); wr.Ln; 	
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to retrieve kernel work group info!'); wr.Ln; wr.Update;
@@ -230,7 +232,7 @@ BEGIN
 	(* Execute the kernel over the entire range of our 1d input data set
 		using the maximum number of work group items for this device *)
 	global := count;
-	err := CL.clEnqueueNDRangeKernel(commands, kernel, 1, 0 , S.ADR(global), S.ADR(local), 0, NIL, NIL);
+	err := CL.clEnqueueNDRangeKernel(commands, kernel, 1, 0 , S.ADR(global), S.ADR(local), 0, 0, 0);
 	wr.String("clEnqueueNDRangeKernel : "); wr.String(Utils.ErrorToStr(err)); wr.Ln; 	
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to execute kernel!'); wr.Ln; wr.Update;
@@ -242,7 +244,7 @@ BEGIN
 	wr.String("clFinish : "); wr.String(Utils.ErrorToStr(err)); wr.Ln; 
   
 	(* Read back the results from the device to verify the output *)
-	err := CL.clEnqueueReadBuffer( commands, output, CL.CL_TRUE, 0, S.SIZEOF(REAL) * count, S.ADR(results[0]), 0, NIL, NIL);
+	err := CL.clEnqueueReadBuffer( commands, output, CL.CL_TRUE, 0, S.SIZEOF(REAL) * count, S.ADR(results[0]), 0, 0, 0);
 	wr.String("EnqueueReadBuffer : "); wr.String(Utils.ErrorToStr(err)); wr.Ln; 	
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to read output array! '); wr.Ln; wr.Update;
@@ -279,23 +281,17 @@ BEGIN
 	err := CL.clReleaseCommandQueue(commands);
 	err := CL.clReleaseContext(context);
  
-	deviceids := NIL;
-	platformids := NIL;    	
 	wr.String("******************************************"); wr.Ln;
 	wr.Update;
 END Test;
 
 BEGIN
 CRLF[0]:=0AX;
-CRLF[1]:=0DX;
-CRLF[2]:=0X;
+CRLF[1]:=0X;
 
 Streams.OpenWriter(wr, KernelLog.Send);
 END OpenCLVectorSquare1.
 
-SystemTools.Free OpenCLVectorSquare1 OpenCLUtils OpenCL~
-
-Compiler.Compile Unix.OpenCL.Mod OpenCLUtils.Mod OpenCLVectorSquare1.Mod ~ 
-
+SystemTools.Free OpenCLVectorSquare1~
 
 OpenCLVectorSquare1.Test ~ 

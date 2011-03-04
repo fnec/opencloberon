@@ -39,8 +39,6 @@ TYPE
 		globalWorkSize  : IVector; (* globalWorkSize domain size for our calculation *)
 		
 		kernelsource: CL.PChar;
-		
-		kernelname: ARRAY 128 OF CHAR;
 
 		 inited: BOOLEAN;
 		 mousex1, mousey1: LONGINT;
@@ -77,11 +75,11 @@ TYPE
 			err := CL.clGetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, S.ADR(deviceids), 0);
 
 			
-			context := CL.clCreateContext(NIL, 1, S.ADR(deviceids), NIL , 0, err);
+			context := CL.clCreateContext(0, 1, S.ADR(deviceids), NIL , 0, err);
 			commands := CL.clCreateCommandQueue(context, deviceids, 0, err);
 			
 			kernelsource := Utils.LoadProgramSource("SimpleMandelbrot.cl", "");
-			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), NIL, err);
+			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), 0, err);
 
 	(*		err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf), bufwritten);
 			KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln; 
@@ -89,7 +87,7 @@ TYPE
 	*)		
 			
 			buf := "-cl-mad-enable";
-			err := CL.clBuildProgram(prog, 0, NIL, S.VAL(CL.PChar,S.ADR(buf[0])), NIL, 0);
+			err := CL.clBuildProgram(prog, 0, NIL, S.ADR(buf[0]), 0, 0);
 			KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
 			IF err # CL.SUCCESS THEN
 				err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);
@@ -101,8 +99,8 @@ TYPE
 			KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln; 
 			KernelLog.String("buf= "); KernelLog.String(buf); KernelLog.Ln; 
 *)
-			kernelname := "computeMandelbrot";
-			kernel := CL.clCreateKernel(prog, S.ADR(kernelname[0]), err); 
+
+			kernel := CL.clCreateKernel(prog, "computeMandelbrot", err); 
 						
 			pixelmem := CL.clCreateBuffer(context,  CL.MEM_WRITE_ONLY, sizeX*sizeY*4 , 0, err);
 			
@@ -110,8 +108,8 @@ TYPE
 		        InitColorMap(256); 
 			colormapLength := LEN(colorMap,0);
 			colorMapMem := CL.clCreateBuffer(context, CL.MEM_READ_WRITE, colormapLength*S.SIZEOF(CL.cl_uint), 0, err);
-			err:= CL.clEnqueueWriteBuffer(commands, colorMapMem, CL.CL_TRUE, 0, colormapLength * S.SIZEOF(CL.cl_uint), S.ADR(colorMap[0]), 0, NIL, NIL);
-      		  
+			err:= CL.clEnqueueWriteBuffer(commands, colorMapMem, CL.CL_TRUE, 0, colormapLength * S.SIZEOF(CL.cl_uint), S.ADR(colorMap[0]), 0, 0, 0);
+			
 			maxIterations := 1250;
 			x0 := -2.0; y0 := -1.3; x1 := 0.6; y1:= 1.3; 
 			inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) &(pixelmem # 0) & (colorMapMem # 0);
@@ -225,9 +223,9 @@ TYPE
 				err := CL.clSetKernelArg(kernel, 8, S.SIZEOF(CL.cl_mem), S.ADR(colorMapMem));			
 				err := CL.clSetKernelArg(kernel, 9, S.SIZEOF(LONGINT), S.ADR(colormapLength));
 							
-				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  S.ADR(globalWorkSize[0]), 0, 0, NIL, NIL);
+				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  S.ADR(globalWorkSize[0]), 0, 0, 0, 0);
 				err := CL.clFinish(commands);
-				err := CL.clEnqueueReadBuffer( commands, pixelmem, CL.CL_TRUE, 0,sizeX*sizeY*4  , mimage.adr, 0, NIL, NIL); 
+				err := CL.clEnqueueReadBuffer( commands, pixelmem, CL.CL_TRUE, 0,sizeX*sizeY*4  , mimage.adr, 0, 0, 0); 
 				
 				elapsed := Kernel.Elapsed(timer);
 				str1:= "SimpleMandelbrotCL:  ";
@@ -270,6 +268,6 @@ BEGIN
 	Modules.InstallTermHandler(Cleanup);
 END MySimpleMandelbrotCL.
 
-SystemTools.Free MySimpleMandelbrotCL OpenCLUtils OpenCL ~
+SystemTools.Free MySimpleMandelbrotCL ~
 
 MySimpleMandelbrotCL.Open ~
