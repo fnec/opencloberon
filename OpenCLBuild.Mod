@@ -2,7 +2,7 @@ MODULE OpenCLBuild; (** AUTHOR "fnecati"; PURPOSE "opencl program syntax checker
 
 IMPORT Modules, Strings, WMComponents, WMMessages, WMRestorable, WMEditors, Commands,
 	WM:=WMWindowManager, WMGraphics, WMStandardComponents, WMDocumentEditor, 
-	UndoManager, KernelLog,
+	UndoManager, KernelLog, XML,
 	CL := OpenCL, Utils:=OpenCLUtils, S:=SYSTEM;
 
 (*
@@ -113,15 +113,20 @@ TYPE
 	VAR 
 		vc : WMComponents.VisualComponent;
 	BEGIN
+		IncCount;
 		 vc := CreateForm();
 		 Init(WindowWidth, WindowHeight, FALSE);
 		 SetContent(vc);
 		SetTitle(Strings.NewString("OpenCLBuild"));
 		(* SetIcon(WMGraphics.LoadImage("OpenCL.png", TRUE)); *)
 		SetIcon(WMGraphics.LoadImage("WMBuilder.tar://structure.png", TRUE)); 
-		IF c # NIL THEN
-			(** todo: make opencl source cleditor and options cleditor  restorable *)
-			WMRestorable.AddByContext(SELF, c)
+		
+		IF c # NIL THEN (* restore *)
+			WMRestorable.AddByContext(SELF, c);
+			IF c.appData # NIL THEN
+				cleditor.FromXml(c.appData(XML.Element));
+				Resized(GetWidth(), GetHeight())
+			END
 		ELSE
 			WM.DefaultAddWindow(SELF) ;
 		END;
@@ -169,36 +174,39 @@ TYPE
 	PROCEDURE Close;
 	BEGIN
 		Close^;
-		wind := NIL
+		DecCount;
 	END Close;
 
 	PROCEDURE Handle(VAR x: WMMessages.Message);
+	VAR data : XML.Element;
 	BEGIN
 		IF (x.msgType = WMMessages.MsgExt) & (x.ext # NIL) THEN
 			IF (x.ext IS KillerMsg) THEN Close
 			ELSIF (x.ext IS WMRestorable.Storage) THEN
-				x.ext(WMRestorable.Storage).Add("OpenCLBuild", "OpenCLBuild.Restore", SELF, NIL)
+				NEW(data); data.SetName("OpenCLBuildData");
+				cleditor.ToXml(data);			
+				x.ext(WMRestorable.Storage).Add("OpenCLBuild", "OpenCLBuild.Restore", SELF, data)
 			ELSE Handle^(x)
 			END
 		ELSE Handle^(x)
 		END
 		END Handle;
-			
+		
 	BEGIN
 	
 	END Window;
 	
-VAR 
-		wind: Window;
+VAR
+	nofWindows : LONGINT;
 		
-		platformids: CL.cl_platform_id;
-		deviceids : CL.cl_device_id;
-		context : CL.cl_context;
-		commands : CL.cl_command_queue;  		
+	platformids: CL.cl_platform_id;
+	deviceids : CL.cl_device_id;
+	context : CL.cl_context;
+	commands : CL.cl_command_queue;  		
 
-		clinited: BOOLEAN;
- 		buf: ARRAY 32768 OF CHAR; (* if kernel size is not enough increase size  *)
- 		log: ARRAY 1024 OF CHAR; 
+	clinited: BOOLEAN;
+	buf: ARRAY 32768 OF CHAR; (* if kernel size is not enough increase size  *)
+	log: ARRAY 1024 OF CHAR; 
              
 PROCEDURE InitCL;
 VAR err, err1, err2, err3: LONGINT;
@@ -227,23 +235,27 @@ BEGIN
 		RETURN
 	END;
 
-      clinited := (err = 0) & (err1 = 0) & (err2 = 0) & (err3 = 0) & (context # 0) & (commands # 0);	
+      clinited := (err = 0) & (err1 = 0) & (err2 = 0) & (err3 = 0) & (context # 0) & (commands # 0);
+      ASSERT(clinited, 101);	
 END InitCL;
 
-(* open build test Window *)
-PROCEDURE Open*;
+(* open *.cl file *)
+PROCEDURE Open*(context : Commands.Context); (**  [filename] ~ *)
+VAR 
+	wind: Window;
+	filename : ARRAY 256 OF CHAR;
 BEGIN
-IF wind = NIL THEN	
 	NEW(wind, NIL);  
-END;
+	IF context.arg.GetString(filename) THEN
+		wind.cleditor.Load(filename, "UTF-8");
+	END;
 END Open;
 
-
 PROCEDURE Restore*(context : WMRestorable.Context);
+VAR
+	winstance: Window;
 BEGIN
-IF wind = NIL THEN
-	NEW(wind, context)
-END;	
+	NEW(winstance, context)
 END Restore;
 
 PROCEDURE Cleanup;
@@ -257,46 +269,34 @@ BEGIN {EXCLUSIVE}
 	msg.msgType := WMMessages.MsgExt;
 	m := WM.GetDefaultManager();
 	m.Broadcast(msg);
-	AWAIT(wind = NIL);
-
+	AWAIT(nofWindows = 0);
+	
 	IF clinited THEN
 		err := CL.clReleaseContext(context);	
 		err := CL.clReleaseCommandQueue(commands);
 	END;	
 END Cleanup;
 
-(* build test from command line:
-  OpenCLBuild.This
-  	"__kernel void sum ( ) 
-  		{ 
-  		} " ~
- *)
-  
-PROCEDURE This*(context : Commands.Context);
-BEGIN
-	
-END This;
+PROCEDURE IncCount;
+BEGIN {EXCLUSIVE}
+	INC(nofWindows)
+END IncCount;
 
-(* build test from file:
-OpenCLBuild.ThisFile Mandelbrod.cl ~ 
- *)
- 
-PROCEDURE ThisFile*(context : Commands.Context);
-BEGIN
-	
-END ThisFile;
-
+PROCEDURE DecCount;
+BEGIN {EXCLUSIVE}
+	DEC(nofWindows)
+END DecCount;
 
 BEGIN
-Modules.InstallTermHandler(Cleanup);
-InitCL;
+	Modules.InstallTermHandler(Cleanup);
+	InitCL;
 END OpenCLBuild.
 
 SystemTools.Free OpenCLBuild ~ 
 
 SystemTools.FreeDownTo OpenCL ~ 
 
-OpenCLBuild.Open ~ 
+OpenCLBuild.Open vectorsquare.cl ~ 
 
 (*
 Write your OpenCL programs into Source code editor (upper editor) and press to Build button
