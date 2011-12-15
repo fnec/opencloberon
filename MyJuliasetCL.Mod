@@ -1,4 +1,4 @@
-MODULE MyJuliasetCL; (** AUTHOR "fnecati"; PURPOSE ""; *)
+MODULE MyJuliasetCL; (** AUTHOR "fnecati"; PURPOSE "A Raytracing demo using OpenCL"; *)
 (* 
 		This example shows how to use OpenCL to raytrace a 4d Quaternion Julia-Set 
           Fractal and intermix the results of a compute kernel with WM for rendering
@@ -223,7 +223,7 @@ VAR err: LONGINT;
 			KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln; 
 			
 		*)					
-			err := CL.clBuildProgram(prog, 0, NIL, 0, 0, 0);
+			err := CL.clBuildProgram(prog, 0, NIL, "", 0, 0);
 
 	(*		err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);
 			KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln; 

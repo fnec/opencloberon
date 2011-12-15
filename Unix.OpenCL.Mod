@@ -1,4 +1,4 @@
-MODULE OpenCL; (** AUTHOR "fnecati"; PURPOSE "OpenCL wrapper for LinuxAos"; *)
+MODULE OpenCL; (** AUTHOR "fnecati"; PURPOSE "OpenCL binding library  for LinuxAos"; *)
 IMPORT S:=SYSTEM, Unix,  Modules, Trace;
 
 (* ******************************************************************************
@@ -26,13 +26,11 @@ IMPORT S:=SYSTEM, Unix,  Modules, Trace;
 
  ported to FPC by Dmitry 'skalogryz' Boyarintsev: 28th apr 2009
  due to name conflict with type names, some constants have been renamed
-
- proted to Oberon by Necati Ecevit  2-02-2011 
  
 *)
 
 CONST 
-	libname="/usr/lib32/libOpenCL.so";  (* for ubuntu 10.04 LTS,  x64 *)
+	libname="libOpenCL.so";  (* for ubuntu 10.04 LTS,  x64 *)
 
 VAR
 	 lib: LONGINT; (* handle to library *)
@@ -233,7 +231,7 @@ TYPE
   cl_device_exec_capabilities* = cl_bitfield;
   cl_command_queue_properties* = cl_bitfield;
 
-  cl_context_properties*   = RECORD name*: cl_uint; value*: csize_t END;
+  cl_context_properties*   = cl_uint;
   cl_context_info*         = cl_uint;
   cl_command_queue_info*   = cl_uint;
   cl_channel_order*        = cl_uint;
@@ -803,7 +801,7 @@ TYPE
 
 VAR
 
-clBuildProgram- : PROCEDURE {C} (iprogram: cl_program; num_devices: cl_uint; device_list: Pcl_device_id; options: ADDRESS (*PChar*); notify: ADDRESS (*TProgramNotify*);  user_data: ADDRESS ): cl_int;
+clBuildProgram- : PROCEDURE {C} (iprogram: cl_program; num_devices:  cl_uint; CONST device_list: Pcl_device_id; CONST options: ARRAY OF CHAR; notify: ADDRESS (*TProgramNotify*);  user_data: ADDRESS ): cl_int;
 
 
 clUnloadCompiler- : PROCEDURE {C}(): cl_int;
@@ -1064,22 +1062,11 @@ clEnqueueWaitForEvents- : PROCEDURE {C} (command_queue: cl_command_queue; num_ev
 clEnqueueBarrier- : PROCEDURE {C} (command_queue: cl_command_queue): cl_int;
 
 
-
-PROCEDURE LibError;
-VAR str: ARRAY 256 OF CHAR;
-      adr: LONGINT;
-BEGIN
-	str:="ERROR:  ";
-	adr := S.ADR(str[0]);
-	Unix.perror(adr);
-	Trace.StringLn(str);	
-END LibError;
-
 PROCEDURE InitLibrary;
 BEGIN {EXCLUSIVE}
 		(* load the DLL *)	
 	lib := Unix.Dlopen(libname,2);
-	IF lib = 0 THEN  LibError; RETURN; END; 
+	ASSERT(lib # 0, 100);
 
 				(* Platform APIs *)
 				Unix.Dlsym(lib, "clGetPlatformIDs", S.VAL(ADDRESS, clGetPlatformIDs));

@@ -1,4 +1,4 @@
-MODULE OpenCL; (** AUTHOR "fnecati"; PURPOSE "OpenCL wrapper for WinAos"; *)
+MODULE OpenCL; (** AUTHOR "fnecati"; PURPOSE "OpenCL binding library for WinAos"; *)
 IMPORT S:=SYSTEM,  Modules, KernelLog, Kernel32;
 
 (*******************************************************************************
@@ -25,9 +25,7 @@ IMPORT S:=SYSTEM,  Modules, KernelLog, Kernel32;
  ******************************************************************************)
 (*
  ported to FPC by Dmitry 'skalogryz' Boyarintsev: 28th apr 2009
- due to name conflict with type names, some constants have been renamed
-
- proted to Oberon by Necati Ecevit  2-02-2011 
+ due to name conflict with type names, some constants have been rename
  
 *)
 
@@ -35,7 +33,7 @@ CONST
 	libname0="OpenCL.dll";
 
 VAR
-	 lib: Kernel32.HMODULE; (* handle to library *)
+	lib: Kernel32.HMODULE; (* handle to library *)
       libname: ARRAY 128 OF CHAR;;
 
 CONST
@@ -52,8 +50,7 @@ TYPE
   Pcsize_t* = POINTER TO ARRAY OF csize_t;
   
   intptr_t* = csize_t;
-  
-  cl_char*     = CHAR; (*-127..+128 *)   
+ cl_char*     = CHAR; (*-127..+128 *)   
   cl_uchar*    = CHAR;  (* 0..255 *)  
   cl_short*    = INTEGER; (* - 32767..+32768; *)  
   cl_ushort*   = INTEGER; (*  0..+65535; *)  
@@ -93,11 +90,11 @@ TYPE
       USHRT_MAX*      =  65535;
       INT_MAX*        =  2147483647;
       INT_MIN*        =  (-2147483647-1);
-      UINT_MAX*       =  SHORT(0FFFFFFFFH);
-      LONG_MAX*       = SHORT( 7FFFFFFFFFFFFFFFH);
-      LONG_MIN*       =  -SHORT(7FFFFFFFFFFFFFFFH) - 1;
-      ULONG_MAX*      =  SHORT(S.VAL(HUGEINT, 0FFFFFFFFFFFFFFFFH));
-
+      UINT_MAX*       =  0FFFFFFFFH;
+      LONG_MAX*       =  7FFFFFFFFFFFFFFFH;
+      LONG_MIN*       =  -(7FFFFFFFFFFFFFFFH) - 1;
+	ULONG_MAX*      =  0FFFFFFFFFFFFFFFFH;
+	 
       FLT_DIG*        =  6;
       FLT_MANT_DIG*   =  24;
       FLT_MAX_10_EXP* =  +38;
@@ -200,11 +197,11 @@ TYPE
 
 TYPE
 
-  cl_platform_id*    = csize_t;
+  cl_platform_id*    =csize_t; 
   cl_device_id*      = csize_t; 
   cl_context*        = csize_t;
   cl_command_queue*  =  csize_t;
-  cl_mem*            =  csize_t;
+  cl_mem*            = csize_t;
   cl_program*        = csize_t;
   cl_kernel*         = csize_t;
   cl_event*          = csize_t;
@@ -233,8 +230,7 @@ TYPE
   cl_device_exec_capabilities* = cl_bitfield;
   cl_command_queue_properties* = cl_bitfield;
 
-
-  cl_context_properties*   = RECORD name*: cl_uint; value*: csize_t END;
+  cl_context_properties*   = cl_uint;
   cl_context_info*         = cl_uint;
   cl_command_queue_info*   = cl_uint;
   cl_channel_order*        = cl_uint;
@@ -261,9 +257,9 @@ TYPE
     image_channel_data_type* : cl_channel_type;
   END ;
   Pcl_image_format*        = POINTER TO ARRAY OF cl_image_format;
-
+ 
   Pcl_context_properties*  = POINTER TO ARRAY OF cl_context_properties;
-
+ 
 CONST
 (* Error Codes *)
    SUCCESS* 							=  0;
@@ -651,14 +647,14 @@ TYPE
 
 
 VAR
-clCreateContext- : PROCEDURE { WINAPI }(  properties : ADDRESS (*Pcl_context_properties*); num_devices  : cl_uint;  devices : ADDRESS;  notify : TContextNotify; user_data: ADDRESS; VAR errcode_ret :  cl_int): cl_context;
+clCreateContext- : PROCEDURE { WINAPI }(  properties : ADDRESS (*Pcl_context_properties*) ; num_devices  : cl_uint;  devices : ADDRESS;  notify : TContextNotify; user_data: ADDRESS; VAR errcode_ret :  cl_int): cl_context;
 
 clCreateContextFromType- : PROCEDURE { WINAPI } (
-  properties      : Pcl_context_properties;
+  properties      : ADDRESS; (*Pcl_context_properties *)
   device_type     : cl_device_type;
   notify          : TContextNotify;
   user_data       : ADDRESS;
-  VAR errcode_ret : cl_int
+  VAR errcode_ret :  cl_int
   ): cl_context;
 
 clRetainContext - : PROCEDURE { WINAPI } (context: cl_context): cl_int;
@@ -732,7 +728,7 @@ clGetSupportedImageFormats- : PROCEDURE { WINAPI }(
   flags 			    : cl_mem_flags;
   image_type 		  : cl_mem_object_type;
   num_entries 		: cl_uint;
-  image_formats   : ADDRESS; (* pcl_image_format *)
+  image_formats   : ADDRESS; (* Pcl_image_format *)
    num_formats : ADDRESS
   ): cl_int;
 
@@ -804,7 +800,7 @@ TYPE
 
 VAR
 
-clBuildProgram- : PROCEDURE { WINAPI } (iprogram: cl_program; num_devices: cl_uint; device_list: Pcl_device_id; options: ADDRESS (*PChar*); notify: ADDRESS (*TProgramNotify*);  user_data: ADDRESS ): cl_int;
+clBuildProgram- : PROCEDURE { WINAPI } (iprogram: cl_program; num_devices:  cl_uint; CONST device_list: Pcl_device_id; CONST options: ARRAY OF CHAR; notify: ADDRESS (*TProgramNotify*);  user_data: ADDRESS ): cl_int;
 
 
 clUnloadCompiler- : PROCEDURE { WINAPI }(): cl_int;
@@ -827,7 +823,7 @@ clGetProgramBuildInfo- : PROCEDURE { WINAPI } (
   ): cl_int; 
 
 (*  Kernel Object APIs *)
-clCreateKernel- : PROCEDURE { WINAPI }(iprogram: cl_program;   CONST kernel_name: ARRAY OF CHAR;   VAR errcode_ret: cl_int ): cl_kernel; 
+clCreateKernel- : PROCEDURE { WINAPI }(iprogram: cl_program;   CONST kernel_name: ARRAY OF CHAR;   VAR  errcode_ret: cl_int ): cl_kernel; 
 
 clCreateKernelsInProgram- : PROCEDURE { WINAPI } (
   iprogram      : cl_program;
@@ -1063,7 +1059,8 @@ VAR
 clEnqueueMarker- : PROCEDURE { WINAPI } (command_queue: cl_command_queue; event: ADDRESS ): cl_int;
 clEnqueueWaitForEvents- : PROCEDURE { WINAPI } (command_queue: cl_command_queue; num_events: cl_uint; event_list: ADDRESS ): cl_int;
 clEnqueueBarrier- : PROCEDURE { WINAPI } (command_queue: cl_command_queue): cl_int;
-
+  
+clGetExtensionFunctionAddress- : PROCEDURE { WINAPI } (CONST funcname: ARRAY OF CHAR): ADDRESS;
 
 
 PROCEDURE InitLibrary;
@@ -1161,6 +1158,8 @@ BEGIN {EXCLUSIVE}
 				Kernel32.GetProcAddress(lib, "clEnqueueMarker", S.VAL(ADDRESS, clEnqueueMarker));
 				Kernel32.GetProcAddress(lib, "clEnqueueWaitForEvents", S.VAL(ADDRESS, clEnqueueWaitForEvents));
 				Kernel32.GetProcAddress(lib, "clEnqueueBarrier", S.VAL(ADDRESS, clEnqueueBarrier));
+				
+				Kernel32.GetProcAddress(lib, "clGetExtensionFunctionAddress", S.VAL(ADDRESS, clGetExtensionFunctionAddress));
 				
 			 KernelLog.String(libname); KernelLog.String(" library loaded"); KernelLog.Ln;
 END InitLibrary;

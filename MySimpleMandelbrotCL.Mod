@@ -1,4 +1,4 @@
-MODULE MySimpleMandelbrotCL;
+MODULE MySimpleMandelbrotCL; (** AUTHOR "fnecati"; PURPOSE "a Mandelbrot demo using OpenCL"; *)
 
 IMPORT
 	Raster,  WMRectangles, WMGraphics, Modules, Math, Strings, S:=SYSTEM, Kernel,
@@ -86,8 +86,7 @@ TYPE
 			KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln; 
 	*)		
 			
-			buf := "-cl-mad-enable";
-			err := CL.clBuildProgram(prog, 0, NIL, S.ADR(buf[0]), 0, 0);
+			err := CL.clBuildProgram(prog, 0, NIL, "-cl-mad-enable", 0, 0);
 			KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
 			IF err # CL.SUCCESS THEN
 				err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);

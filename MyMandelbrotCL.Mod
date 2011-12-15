@@ -1,4 +1,4 @@
-MODULE MyMandelbrotCL;
+MODULE MyMandelbrotCL; (** AUTHOR "fnecati"; PURPOSE "a Mandelbrot demo using OpenCL"; *)
 
 IMPORT
 	Raster, WMRectangles, WMGraphics, Modules, Strings, S:=SYSTEM, Kernel,
@@ -90,7 +90,7 @@ TYPE
 			KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln; 
 			
 		*)					
-			err := CL.clBuildProgram(prog, 0, NIL, 0, 0, 0);
+			err := CL.clBuildProgram(prog, 0, NIL, "", 0, 0);
 
 (*			err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);
 			KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln; 

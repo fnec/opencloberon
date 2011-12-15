@@ -1,4 +1,4 @@
-MODULE MyImageRotateCL; (** AUTHOR "fnecati"; PURPOSE ""; *)
+MODULE MyImageRotateCL; (** AUTHOR "fnecati"; PURPOSE "A demo for image rotation using OpenCL"; *)
 (* 
 	kernel program adapted from:
 	JOCL - Java bindings for OpenCL
@@ -234,7 +234,7 @@ VAR
 	(*		err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf[0]), 0);
 			KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln; 
 	*)									
-			err := CL.clBuildProgram(prog, 0, NIL, 0, 0, 0);
+			err := CL.clBuildProgram(prog, 0, NIL, "", 0, 0);
 			IF err # CL.SUCCESS THEN
 					 KernelLog.String("ERROR clBuildProgram: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
 					err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), 0);

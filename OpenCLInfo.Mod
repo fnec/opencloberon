@@ -1,6 +1,6 @@
-MODULE TestOpenCLInfo;
-IMPORT CL:=OpenCL, S:=SYSTEM, KernelLog, Streams, Strings, Utils:=OpenCLUtils;
+MODULE OpenCLInfo; (** AUTHOR "fnecati"; PURPOSE "Prints OpenCL properties of GPU"; *)
 
+IMPORT CL:=OpenCL, S:=SYSTEM, KernelLog, Streams, Strings, Utils:=OpenCLUtils;
 
 TYPE 
 	Int3Array=ARRAY 3 OF LONGINT;
@@ -9,7 +9,7 @@ VAR
 	wr: Streams.Writer;
   
 (** Show OpenCL infos *)
-PROCEDURE Info*;
+PROCEDURE Show*;
 VAR i, j, k: LONGINT;
  err     : LONGINT; (* error code returned from api calls*)
   platformids  : CL.Pcl_platform_id;
@@ -308,13 +308,16 @@ BEGIN
   platformids := NIL;    	
 wr.String("******************************************"); wr.Ln;
 wr.Update;
-END Info;
+END Show;
 
 BEGIN
 
 Streams.OpenWriter(wr, KernelLog.Send);
-END TestOpenCLInfo.
+END OpenCLInfo.
 
-SystemTools.Free TestOpenCLInfo ~
+SystemTools.Free OpenCLInfo ~
 
-TestOpenCLInfo.Info ~ 
+SystemTools.FreeDownTo OpenCL ~
+
+
+OpenCLInfo.Show ~ 

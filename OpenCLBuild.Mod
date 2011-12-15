@@ -1,23 +1,22 @@
 MODULE OpenCLBuild; (** AUTHOR "fnecati"; PURPOSE "opencl program syntax checker"; *)
 
 IMPORT Modules, Strings, WMComponents, WMMessages, WMRestorable, WMEditors, Commands,
-	WM:=WMWindowManager, WMGraphics, WMStandardComponents,
-	CL := OpenCL, Utils:=OpenCLUtils, S:=SYSTEM, KernelLog;
+	WM:=WMWindowManager, WMGraphics, WMStandardComponents, WMDocumentEditor, 
+	UndoManager, KernelLog,
+	CL := OpenCL, Utils:=OpenCLUtils, S:=SYSTEM;
 
 (*
    typical todo's:
    
-  - DragNDrop *.cl files to cleditor
-  - load and save as cl file
-  - comand line build.
-   ...
-   binary IR previewer 
-   add OpenCL syntax to SyntaxHighlighter.XML or a new one.
-   .. integrate to PET ??  
+	- DragNDrop *.cl files to cleditor
+	- make the window Restorable
+	- make CL specific syntax highlighter
+	- command line build test.
+	-  etc.
 *)
 
 CONST
-	WindowWidth = 600; WindowHeight = 600;
+	WindowWidth = 700; WindowHeight = 500;
 		
 TYPE 
 
@@ -26,26 +25,31 @@ TYPE
 	
 	Window = OBJECT(WMComponents.FormWindow)
 	VAR 
-	      cleditor, logcleditor, optionscleditor: WMEditors.Editor;
+	      cleditor: WMDocumentEditor.Editor;
+	      logcleditor, optionscleditor: WMEditors.Editor;
 	      cbut: WMStandardComponents.Button;
-		      
+		um: UndoManager.UndoManager;
+		    
 	PROCEDURE CreateForm(): WMComponents.VisualComponent;
 	VAR 
 			label : WMStandardComponents.Label;
-			panel : WMStandardComponents.Panel;
-			toolbar: WMStandardComponents.Panel;
-			vsizer : WMStandardComponents.Resizer;
-			grpanel: WMStandardComponents.GroupPanel;
+			panel, tpanel : WMStandardComponents.Panel; (* main and editor panel *)
+			toolbar, statusbar: WMStandardComponents.Panel;
+			vsizer : WMStandardComponents.Resizer; 
+			grpanel: WMStandardComponents.GroupPanel; (* groupbox panel *)
 			
 	BEGIN
-		NEW(panel); panel.bounds.SetExtents(WindowWidth, WindowHeight); panel.takesFocus.Set(TRUE);
+		(*  Main Panel holding the tabs, toolbar and contents  *)
 		
+		NEW(panel); panel.alignment.Set(WMComponents.AlignClient); panel.fillColor.Set(0FFFFFFFFH); panel.takesFocus.Set(TRUE);
+	
 		NEW(toolbar); toolbar.bounds.SetHeight(20); toolbar.alignment.Set(WMComponents.AlignTop);
 		toolbar.fillColor.Set(0DDDDDDFFH);
 		panel.AddContent(toolbar);
 		
 		(* build button *)
 		NEW(cbut); cbut.bounds.SetWidth(100); cbut.caption.SetAOC("Build");  cbut.alignment.Set(WMComponents.AlignLeft);
+		 cbut.onClick.Add(CLBuild);
 		toolbar.AddContent(cbut);
 
 		NEW(label); label.bounds.SetWidth(80); label.caption.SetAOC(" with Options: "); 
@@ -60,39 +64,47 @@ TYPE
 		optionscleditor.SetAsString("-cl-mad-enable");
 		toolbar.AddContent(optionscleditor);
 		
+		(* Editor area*)		
+		NEW(tpanel); tpanel.alignment.Set(WMComponents.AlignClient);
+		tpanel.fillColor.Set(0FFDFFH);
+		panel.AddContent(tpanel);
 		
+		(* group panel, source *)
 		NEW(grpanel); grpanel.alignment.Set(WMComponents.AlignClient);
 		grpanel.fillColor.Set(0FFFFFFFFH); grpanel.caption.SetAOC("OpenCL source code:");
-		panel.AddContent(grpanel);
+		tpanel.AddContent(grpanel);
 		
 		(* opencl source cleditor *)							
 		NEW(cleditor); 
 		cleditor.alignment.Set(WMComponents.AlignClient); 
-		cleditor.tv.showBorder.Set(TRUE);
-		cleditor.highlighting.SetAOC("C");
-		cleditor.multiLine.Set(TRUE);
-		cleditor.tv.showLineNumbers.Set(TRUE);
-		grpanel.AddContent(cleditor);	
-	
-		NEW(toolbar); toolbar.bounds.SetHeight(100); toolbar.alignment.Set(WMComponents.AlignBottom);
-		panel.AddContent(toolbar);
+		(* cleditor.SetToolbar(WMDocumentEditor.All-WMDocumentEditor.FormatButton);*)
+		cleditor.SetToolbar(WMDocumentEditor.All);
+		cleditor.editor.highlighting.SetAOC("C"); (*? or  put cl types to SytaxHighlighter.XML, Configuration.XML *)
+		cleditor.editor.tv.showLineNumbers.Set(TRUE);
+		cleditor.editor.tv.showBorder.Set(TRUE);
+
+		NEW(statusbar); statusbar.alignment.Set(WMComponents.AlignBottom);
+		statusbar.fillColor.Set(0FFDFFH); statusbar.bounds.SetHeight(130);
+		
+		grpanel.AddContent(statusbar);		
+		grpanel.AddContent(cleditor);					
 
 		(* resizer *)
 		NEW(vsizer); vsizer.alignment.Set(WMComponents.AlignTop);	vsizer.bounds.SetHeight(4);
 		 vsizer.fillColor.Set(0FF0000FFH); 
-		toolbar.AddContent(vsizer);
-		
+		statusbar.AddContent(vsizer);
+				
 		NEW(grpanel); grpanel.bounds.SetHeight(100); grpanel.alignment.Set(WMComponents.AlignClient);
 		grpanel.fillColor.Set(0DDDDDDDDH); grpanel.caption.SetAOC("Build Log:");
-		toolbar.AddContent(grpanel);
+		statusbar.AddContent(grpanel);
 		
-		(* build result cleditor *)		
+		(* build result log editor *)
 		NEW(logcleditor); 
 		logcleditor.alignment.Set(WMComponents.AlignClient); 
 		logcleditor.tv.showBorder.Set(TRUE);
 				
 		logcleditor.multiLine.Set(TRUE);
-		grpanel.AddContent(logcleditor);	
+		grpanel.AddContent(logcleditor);
 						
 		RETURN panel
 	END CreateForm;
@@ -102,38 +114,40 @@ TYPE
 		vc : WMComponents.VisualComponent;
 	BEGIN
 		 vc := CreateForm();
-		 Init(vc.bounds.GetWidth(), vc.bounds.GetHeight(), FALSE);
-		 cbut.onClick.Add(CLBuild);
+		 Init(WindowWidth, WindowHeight, FALSE);
 		 SetContent(vc);
 		SetTitle(Strings.NewString("OpenCLBuild"));
 		(* SetIcon(WMGraphics.LoadImage("OpenCL.png", TRUE)); *)
+		SetIcon(WMGraphics.LoadImage("WMBuilder.tar://structure.png", TRUE)); 
 		IF c # NIL THEN
 			(** todo: make opencl source cleditor and options cleditor  restorable *)
 			WMRestorable.AddByContext(SELF, c)
 		ELSE
 			WM.DefaultAddWindow(SELF) ;
 		END;
+		NEW(um, 100, TRUE);
+		cleditor.editor.text.SetUndoManager(um);
+		cleditor.editor.SetUndoManager(um);
 	END New;
 	
 	PROCEDURE CLBuild(sender, data : ANY);
 	VAR 
-	      options: ARRAY 128 OF CHAR;
+	      options: ARRAY 256 OF CHAR;
 	      err: LONGINT;
 	      pbuf: CL.PChar;
      		prog      : CL.cl_program;       (* compute program *)
      		status: CL.cl_build_status; 
-     		binarysize: CL.csize_t;
-     		
+     		binarysize: CL.csize_t;     		
 	BEGIN
 	IF clinited THEN
-	 		cleditor.GetAsString(buf);
+	 		cleditor.editor.GetAsString(buf);
 	 		optionscleditor.GetAsString(options);
 	 		
 	 		pbuf := S.VAL(CL.PChar, S.ADR(buf[0]));
 			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, err);
 			IF prog # 0 THEN		
 				
-				err := CL.clBuildProgram(prog, 0, NIL, S.ADR(options[0]), 0, 0);
+				err := CL.clBuildProgram(prog, 0, NIL, options, 0, 0);
 				KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
 					
 				IF err  # CL.SUCCESS THEN
@@ -145,10 +159,10 @@ TYPE
 					IF err = CL.SUCCESS THEN
 					  KernelLog.String("Program Binary Size= "); KernelLog.Int(binarysize, 0);  KernelLog.String(" bytes."); KernelLog.Ln; 
 					END;
-					logcleditor.SetAsString("SUCCESS"); 
+					logcleditor.SetAsString("SUCCESS");
 				END;					
 			END;				
-			err := CL.clReleaseProgram(prog);	
+			err := CL.clReleaseProgram(prog);
 	 END;
 	END CLBuild;
 	
@@ -180,8 +194,9 @@ VAR
 		platformids: CL.cl_platform_id;
 		deviceids : CL.cl_device_id;
 		context : CL.cl_context;
-		commands : CL.cl_command_queue;  
-          clinited: BOOLEAN;
+		commands : CL.cl_command_queue;  		
+
+		clinited: BOOLEAN;
  		buf: ARRAY 32768 OF CHAR; (* if kernel size is not enough increase size  *)
  		log: ARRAY 1024 OF CHAR; 
              
@@ -212,7 +227,7 @@ BEGIN
 		RETURN
 	END;
 
-      clinited := (err = 0) & (err1 = 0) & (err2 = 0) & (err3 = 0) & (context # 0) & (commands # 0);
+      clinited := (err = 0) & (err1 = 0) & (err2 = 0) & (err3 = 0) & (context # 0) & (commands # 0);	
 END InitCL;
 
 (* open build test Window *)
@@ -278,6 +293,8 @@ InitCL;
 END OpenCLBuild.
 
 SystemTools.Free OpenCLBuild ~ 
+
+SystemTools.FreeDownTo OpenCL ~ 
 
 OpenCLBuild.Open ~ 
 

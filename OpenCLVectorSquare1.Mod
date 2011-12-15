@@ -2,7 +2,10 @@ MODULE OpenCLVectorSquare1; (** AUTHOR "fnecati"; PURPOSE "Square of vectors usi
 IMPORT CL := OpenCL, S:=SYSTEM, KernelLog, Streams, Utils:=OpenCLUtils, DynamicStrings, Strings;
 
 CONST DATA_SIZE=32768;
-	 
+
+TYPE
+	RVector = POINTER TO ARRAY OF REAL;
+		 
 TYPE 
 	DynamicString = DynamicStrings.DynamicString;
 	  	
@@ -56,9 +59,9 @@ PROCEDURE Test*;
 VAR
 	err     : LONGINT; (* error code returned from api calls*)
  
-	data    : ARRAY DATA_SIZE OF REAL; (* original data set given to device *)
-	results : ARRAY DATA_SIZE OF REAL; (* results returned from device *)
-
+	data    : RVector; (* original data set given to device *)
+	results : RVector; (* results returned from device *)
+	
 	global  : CL.csize_t;  (* global domain size for our calculation *)
 	local   : CL.csize_t;  (* local domain size for our calculation *)
     
@@ -86,6 +89,9 @@ VAR
 BEGIN
 	(*Fill our data set with float values *)
 	count := DATA_SIZE;
+	NEW(data, count);
+	NEW(results, count);
+		
 	FOR i:=0 TO count - 1 DO data[i]:=i; END;
 
 	err := CL.clGetPlatformIDs( 1, S.ADR(platformids), 0 ); 
@@ -156,7 +162,7 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	wr.String("numdevices dumy= "); wr.Int(dumy, 0); wr.Ln; 
    
 	(* Build the program executable *)
-	err := CL.clBuildProgram(prog, 0, NIL, 0, 0, 0);
+	err := CL.clBuildProgram(prog, 0, NIL, "", 0, 0);
 	wr.String("clBuildProgram : "); wr.String(Utils.ErrorToStr(err)); wr.Ln;  wr.Update;
 	IF err # CL.SUCCESS THEN
 		wr.String('Error: Failed to build program executable!'); wr.Ln; wr.Update; 
