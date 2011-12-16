@@ -9,10 +9,28 @@ IMPORT Modules, Strings, WMComponents, WMMessages, WMRestorable, WMEditors, Comm
    typical todo's:
    
 	- DragNDrop *.cl files to cleditor
-	- make the window Restorable
 	- make CL specific syntax highlighter
 	- command line build test.
 	-  etc.
+	
+	To open *.cl files from File Manager with OpenCLBuild, append the following <Section name="cl"> part
+	 to Filehandlers section in Configuration.XML file.
+	 
+
+		<Section name="Filehandlers">
+		<!-- use lower case for extensions, sort lexographically -->	
+
+			....
+			....
+		
+			<Section name="cl">
+					<Setting name="Open" value="OpenCLBuild.Open"/>
+			</Section>
+		
+			...
+			...
+		
+		</Section>	
 *)
 
 CONST
@@ -142,7 +160,7 @@ TYPE
 	      pbuf: CL.PChar;
      		prog      : CL.cl_program;       (* compute program *)
      		status: CL.cl_build_status; 
-     		binarysize: CL.csize_t;     		
+     		binarysize: CL.csize_t;
 	BEGIN
 	IF clinited THEN
 	 		cleditor.editor.GetAsString(buf);
@@ -201,6 +219,7 @@ VAR
 		
 	platformids: CL.cl_platform_id;
 	deviceids : CL.cl_device_id;
+
 	context : CL.cl_context;
 	commands : CL.cl_command_queue;  		
 
@@ -236,7 +255,7 @@ BEGIN
 	END;
 
       clinited := (err = 0) & (err1 = 0) & (err2 = 0) & (err3 = 0) & (context # 0) & (commands # 0);
-      ASSERT(clinited, 101);	
+      ASSERT(clinited, 101); 
 END InitCL;
 
 (* open *.cl file *)
@@ -272,9 +291,10 @@ BEGIN {EXCLUSIVE}
 	AWAIT(nofWindows = 0);
 	
 	IF clinited THEN
-		err := CL.clReleaseContext(context);	
 		err := CL.clReleaseCommandQueue(commands);
+		err := CL.clReleaseContext(context);		
 	END;	
+
 END Cleanup;
 
 PROCEDURE IncCount;
