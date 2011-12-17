@@ -1,0 +1,19 @@
+<Desktop>
+	<Window name="WMKernelLog" loader="WMKernelLog.Restore" l="23" t="50" r="663" b="470" flags="{0..2}"/>
+	<Window name="FileManager" loader="WMFileManager.Restore" l="414" t="140" r="914" b="540" flags="{0..2}"/>
+	<Window name="PET" loader="PET.Restore" l="214" t="76" r="1014" b="676" flags="{0..2}">
+		<PETData>
+			<General SelectedPageNr="0" ProjectTextFile=""/>
+			<Tab file="OpenCLBuild0.Mod" codecFormat="AUTO" compilerOptions="-b=AMD --warnings" showLabels="false" wordWrap="false">
+				<Editor firstLine="249" cursorPos="6798"/>
+				<SplitEditor visible="false" firstLine="0" cursorPos="0" height="400"/>
+				<SearchPanel visible="false" wrap="false" casesensitive="true" backwards="false" highlight="false" searchString="" replaceString=""/>
+				<LogPanel height="130"/>
+				<SidePanel visible="true" width="250" scratchHeight="5"/>
+			</Tab>
+		</PETData>
+	</Window>
+	<Window name="OpenCLBuild0" loader="OpenCLBuild0.Restore" l="36" t="120" r="736" b="620" flags="{0..2}">
+		<OpenCLBuild0Data file="vectorsquare.cl" codecFormat="UTF-8" firstLine="0" cursorPos="0" wordWrap="false"/>
+	</Window>
+</Desktop>
