@@ -1,43 +1,38 @@
+OpenCL bindings for A2- LinuxAos and WinAos.
 
-For UnixAos:									
-Compiler.Compile Unix.OpenCL.Mod ~
+# For UnixAos, compile:
+Compiler.Compile Unix.OpenCL.Mod Unix.OpenCLext.Mod Unix.OpenCLGL.Mod~
 
-For WinAos:
-Compiler.Compile Win32.OpenCL.Mod ~
+# For WinAos, compile :
+Compiler.Compile Win32.OpenCL.Mod Win32.OpenCLext.Mod Win32.OpenCLGL.Mod~
 
+# Compile Utilities:
+Compiler.Compile OpenCLUtils.Mod OpenCLInfo.Mod OpenCLBuild.Mod ~
 
-Utilities: 
-Compiler.Compile OpenCLUtils.Mod OpenCLInfo.Mod OpenCLBuild.Mod ~ 
-
-Demos:
-
+# Demos:
 Compiler.Compile
-OpenCLVectorSquare.Mod
-OpenCLVectorSquare1.Mod
-MySimpleMandelbrotCL.Mod
-MyMandelbrotCL.Mod
-OpenCLEvents.Mod
-MyImageRotateCL.Mod
-MyJuliasetCL.Mod
+	OpenCLVectorSquare.Mod
+	OpenCLVectorSquare1.Mod
+	MySimpleMandelbrotCL.Mod
+	MyMandelbrotCL.Mod
+	OpenCLEvents.Mod
+	MyImageRotateCL.Mod
+	MyJuliasetCL.Mod
 ~
 
-OpenCLInfo.Show ~ 
+# Run demos:
+	OpenCLInfo.Show ~  # display opencl info
 
-MyMandelbrotCL.Open ~
+	OpenCLVectorSquare.Test ~
+	OpenCLVectorSquare1.Test ~
+	OpenCLEvents.Test ~
 
-MySimpleMandelbrotCL.Open ~
+	MyMandelbrotCL.Open ~
+	MySimpleMandelbrotCL.Open ~
+	MyImageRotateCL.Open "BluebottlePic0.png" ~
+	MyJuliasetCL.Open ~
+	OpenCLBuild.Open ~  # opencl kernel source compile testing.
 
-MyImageRotateCL.Open "BluebottlePic0.png" ~
+ # remove all modules till OpenCL:
 
-MyJuliasetCL.Open ~ 
-
-OpenCLBuild.Open ~ 
-
-
-
-
-
-
-
-
-  
+ SystemTools.FreeDownTo OpenCL ~ 

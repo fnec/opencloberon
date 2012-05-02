@@ -1,5 +1,5 @@
 MODULE MyImageRotateCL; (** AUTHOR "fnecati"; PURPOSE "A demo for image rotation using OpenCL"; *)
-(* 
+(*
 	kernel program adapted from:
 	JOCL - Java bindings for OpenCL
 	Copyright 2010 Marco Hutter - http://www.jocl.org/
@@ -9,13 +9,13 @@ MODULE MyImageRotateCL; (** AUTHOR "fnecati"; PURPOSE "A demo for image rotation
   which is rotated using an OpenCL kernel involving some
   basic image operations.
  *)
- 
+
 IMPORT
 	Raster, WMRectangles, WMGraphics, Modules, Strings, Kernel, Commands,
 	WM := WMWindowManager,  WMMessages, KernelLog, WMDialogs, Streams,
 	S:=SYSTEM, CL := OpenCL, Utils := OpenCLUtils;
 
-TYPE 
+TYPE
 	IVector = ARRAY [*] OF LONGINT;
 
 	KillerMsg = OBJECT
@@ -24,41 +24,32 @@ TYPE
 	Window* =  OBJECT(WM.BufferWindow)
 	VAR
 		timer: Kernel.MilliTimer;
-		alive, dead, animated: BOOLEAN;
-		 		
+		alive, animated: BOOLEAN;
+		 stitle: ARRAY 128 OF CHAR;
+
 		PROCEDURE &New();
 		BEGIN
-			Init(sizeX, sizeY, FALSE);
+			Init(inputImage.width, inputImage.height, TRUE);
 			manager := WM.GetDefaultManager();
 			manager.Add(100, 100, SELF, {WM.FlagFrame, WM.FlagClose, WM.FlagNoResizing});
-			SetTitle(Strings.NewString("SimpleImageCL: "));				
+			SetTitle(Strings.NewString("SimpleImageCL:"));
 			animated := FALSE;
-			dead := FALSE;
+			alive := TRUE;
+			angle := 0;
 			RotateImage;
 		END New;
 
 		PROCEDURE KeyEvent* (ucs: LONGINT; flags: SET; keysym: LONGINT);
 		BEGIN
 			CASE CHR(ucs) OF
-			 "r" : angle  := angle + 0.1;
-			| "l": angle := angle - 0.1;
-			| "A" : animated := ~animated;
-			| "S": SaveImage;
+			 "r" : angle  := angle + 0.1; RotateImage;
+			| "l": angle := angle - 0.1; RotateImage;
+			| "a" : animated := ~animated; RotateImage;
+			| "q" : Close;
+			| "s": SaveImage;
 			ELSE
-			
 			END;
-			IF inited THEN
-				RotateImage;
-			END
 		END KeyEvent;
-	
-		PROCEDURE Handle(VAR m: WMMessages.Message);
-		BEGIN
-			IF (m.msgType = WMMessages.MsgExt) & (m.ext # NIL) & (m.ext IS KillerMsg) THEN
-				Close;
-			ELSE Handle^(m)
-			END
-		END Handle;
 
 		PROCEDURE Draw*(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
 		BEGIN
@@ -68,259 +59,325 @@ TYPE
 		PROCEDURE Close*;
 		BEGIN
 			alive := FALSE;
-			BEGIN {EXCLUSIVE} AWAIT(dead); END;
 			Close^;
 			window := NIL;
 		END Close;
 
-		PROCEDURE RotateImage;
-		VAR err: LONGINT;	
-			elapsed: LONGINT;
-			str1, str2 : ARRAY 128 OF CHAR;
-			
+		(* calculate execution time for the event *)
+		PROCEDURE ExecutionTime(name: ARRAY OF CHAR; ke, re: CL.cl_event);
+		VAR ksec, rsec: LONGREAL;
+			err: LONGINT;
+			endtime, starttime: HUGEINT;
+			stime: ARRAY 128 OF CHAR;
 		BEGIN
-			IF inited THEN	
+			COPY(name, stitle);
+			err := CL.clGetEventProfilingInfo(ke , CL.PROFILING_COMMAND_END, S.SIZEOF(HUGEINT), S.ADR(endtime),0);
+			err := CL.clGetEventProfilingInfo(ke, CL.PROFILING_COMMAND_START, S.SIZEOF(HUGEINT), S.ADR(starttime), 0);
+
+			ksec := 1.0D-3*(endtime-starttime);   (* ns -> us *)
+
+			Strings.FloatToStr(ksec, 0,1,0, stime);
+			Strings.Append(stitle, stime);
+			Strings.Append(stitle, ", ");
+
+			err := CL.clGetEventProfilingInfo(re , CL.PROFILING_COMMAND_END, S.SIZEOF(HUGEINT), S.ADR(endtime),0);
+			err := CL.clGetEventProfilingInfo(re, CL.PROFILING_COMMAND_START, S.SIZEOF(HUGEINT), S.ADR(starttime), 0);
+
+			rsec := 1.0D-3*(endtime-starttime);   (* ns -> us *)
+			Strings.FloatToStr(rsec, 0,1,0, stime);
+			Strings.Append(stitle, stime);
+			Strings.Append(stitle, " us.");
+		END ExecutionTime;
+
+		PROCEDURE RotateImage;
+		VAR err: LONGINT;
+			elapsed: LONGINT;
+			str1 : ARRAY 128 OF CHAR;
+			kernelEvent, readEvent: CL.cl_event;
+		BEGIN
+				IF angle>1000.0 THEN angle :=0.0; END;
+
 				 Kernel.SetTimer(timer,0);
-				 IF animated THEN
-					angle := angle + 0.01;
-					IF angle>1000.0 THEN angle :=0.0; END;			 
-				 END;
+
 	     		err := CL.clSetKernelArg(kernel, 0, S.SIZEOF(CL.cl_mem), S.ADR(inputImageMem));
 	     		IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clSetKernelArg-0: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
+					 KernelLog.String("ERROR clSetKernelArg-0: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 					 RETURN
-				END;	
+				END;
 	     		err := CL.clSetKernelArg(kernel, 1, S.SIZEOF(CL.cl_mem), S.ADR(outputImageMem));
 	     		IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clSetKernelArg-1: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
+					 KernelLog.String("ERROR clSetKernelArg-1: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 					 RETURN
-				END;	
+				END;
 
 	     		err := CL.clSetKernelArg(kernel, 2, S.SIZEOF(CL.cl_float),  S.ADR(angle));
 	     		IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clSetKernelArg-2: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
+					 KernelLog.String("ERROR clSetKernelArg-2: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 					 RETURN
-				END;	
+				END;
 
-        			err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0, S.ADR(globalWorkSize[0]), 0, 0, 0, 0);
+        			err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0, S.ADR(globalWorkSize[0]), 0, 0, 0, S.ADR(kernelEvent));
 	     		IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clEnqueueNDRangeKernel: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
+					 KernelLog.String("ERROR clEnqueueNDRangeKernel: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 					 RETURN
-				END;	
+				END;
+
+				(* Wait for the the event, i.e. until the kernel is completed *)
+				err := CL.clWaitForEvents(1, S.ADR(kernelEvent));
 
         			(* Read the pixel data into the output image *)
         			origin[0] := 0; origin[1] := 0; origin[2] := 0;
-        			region[0] := sizeX; region[1] := sizeY; region [2] := 1;
-        			
-				err := CL.clEnqueueReadImage(commands, outputImageMem, CL.CL_TRUE, S.ADR(origin[0]), S.ADR(region[0]),  sizeX * S.SIZEOF(CL.cl_uint), 0, outputImage.adr, 0, 0, 0);
-				IF err # CL.SUCCESS THEN
-					KernelLog.String("ERROR clEnqueueReadImage: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
-					RETURN
-				END;	
+        			region[0] := inputImage.width; region[1] := inputImage.height; region [2] := 1;
 
-				(*  write timing info  *)						
-				str1:= "SimpleImageCL:  ";			
-				elapsed := Kernel.Elapsed(timer);
-				Strings.IntToStr(elapsed, str2);
-				Strings.Append(str1, str2);
-				Strings.Append(str1, " ms.");				
-				SetTitle(Strings.NewString(str1));
-				
-				Raster.Copy(outputImage,img, 0,0, sizeX, sizeY, 0, 0, mode);
+				err := CL.clEnqueueReadImage(commands, outputImageMem, CL.CL_TRUE, S.ADR(origin[0]), S.ADR(region[0]),  inputImage.width * S.SIZEOF(CL.cl_uint), 0, outputImage.adr, 0, 0, S.ADR(readEvent));
+				IF err # CL.SUCCESS THEN
+					KernelLog.String("ERROR clEnqueueReadImage: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+					RETURN
+				END;
+
+			 	(* Wait for the the event, i.e. until the result is read *)
+				err := CL.clWaitForEvents(1, S.ADR(readEvent));
+
+				Raster.Copy(outputImage,img, 0,0, img.width, img.height, 0, 0, mode);
 				Invalidate(WMRectangles.MakeRect(0, 0, GetWidth(), GetHeight()));
-			END;
+
+				(*  write timing info  *)
+				elapsed := Kernel.Elapsed(timer);
+				Strings.IntToStr(elapsed, str1);
+
+			 (*  write timing info for kernels, readbuffer *)
+				ExecutionTime("SimpleImageCL:kernel, read time: ",kernelEvent, readEvent);
+				Strings.Append(stitle, ", Total:");
+				Strings.Append(stitle, str1);
+				Strings.Append(stitle, " ms.");
+				SetTitle(Strings.NewString(stitle));
+				(* out.String(stitle); out.Ln; out.Update; *)
 		END RotateImage;
 
 		PROCEDURE SaveImage;
 		VAR res: LONGINT;
 			fname: ARRAY 128 OF CHAR;
 		BEGIN
-		fname:="simpleimage0.bmp";
+		fname:="simpleimage.bmp";
 		IF WMDialogs.QueryString(" Save File name: ",fname)=WMDialogs.ResOk THEN
 				WMGraphics.StoreImage(img,fname,res);
 		END;
 		END SaveImage;
-		
-	BEGIN  {ACTIVE}
-	alive := TRUE;
-	WHILE alive DO
-		IF animated THEN
-			RotateImage;
-		END
-	END;
-	BEGIN {EXCLUSIVE} dead := TRUE; END;	
 
+	BEGIN  {ACTIVE}
+		WHILE alive DO
+			IF  animated THEN;
+				RotateImage;
+				angle := angle + 0.1;
+			END;
+		END;
 	END Window;
 
 VAR
+		out: Streams.Writer;
+
 		window : Window;
      		inputImage: Raster.Image; (* input image *)
      		outputImage: Raster.Image; (* output image *)
 		mode: Raster.Mode;
-     	
-		platformids: CL.cl_platform_id;
-		deviceids : CL.cl_device_id;
+
+		platformids: POINTER TO ARRAY OF CL.cl_platform_id;
+		platform: CL.cl_platform_id;
+		nplatforms: LONGINT;
+
+		deviceids : POINTER TO ARRAY OF CL.cl_device_id;
+		deviceid: CL.cl_device_id;
+		ndevices: LONGINT;
+
 		context : CL.cl_context;
-		commands : CL.cl_command_queue;  
+		commands : CL.cl_command_queue;
 		prog      : CL.cl_program;       (* compute program *)
 		kernel    : CL.cl_kernel;         (* compute kernel *)
-		
+
 		inputImageMem   : CL.cl_mem;  (* device memory used for the input image *)
 		outputImageMem: CL.cl_mem;  (* device memory used for the output image *)
 
-		kernelsource: CL.PChar;  
-	
+		kernelsource: CL.PChar;
+
 		angle : REAL;
 		inited : BOOLEAN;
-		
-		globalWorkSize: IVector;
-		sizeX, sizeY: LONGINT; (* size of image *)
-		origin, region: CL.Pcsize_t;
-		
-	    		
-PROCEDURE InitCL;
-VAR 
-		err: LONGINT;
-		imageSupport: LONGINT;
-		properties: HUGEINT; (* CL.bit_field *)
-		(*bufwritten: LONGINT;*)
-		buf: ARRAY 4096 OF CHAR; 
-		
-		BEGIN
-			inited := FALSE;
-			angle := 0.0;
-			NEW(origin,3); 	NEW(region,3);
-			sizeX := inputImage.width; 
-			sizeY := inputImage.height; 
-				
-			globalWorkSize := [sizeX, sizeY];
-			
-			err := CL.clGetPlatformIDs( 1, S.ADR(platformids), 0 ); 
-			err := CL.clGetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, S.ADR(deviceids), 0);
-			
-			err := CL.clGetDeviceInfo(deviceids, CL.DEVICE_IMAGE_SUPPORT, S.SIZEOF(CL.cl_int), S.ADR(imageSupport), 0);
-			IF err = CL.SUCCESS THEN			
-					IF imageSupport = 0 THEN
-					 inited := FALSE;
-					 KernelLog.String("No Image Support"); KernelLog.Ln; 
-					 RETURN;
-					 END;
-			ELSE
-					 KernelLog.String("ERROR clGetDeviceInfo: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
-					 RETURN
-			END;
-			
-			context := CL.clCreateContext(0, 1, S.ADR(deviceids), NIL , 0, err);
-			IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clCreateContext: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
-					 RETURN
-			END;
-			
-			(* with event profile *)
-			properties := S.VAL(HUGEINT, {CL.QUEUE_PROFILING_ENABLE, CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE});
-			commands := CL.clCreateCommandQueue(context, deviceids, properties , err);
-			IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clCreateCommandQueue: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
-					 RETURN
-			END;			
-			
-			kernelsource := MyProgramSource();
-			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), 0, err);
-			IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clCreateProgramWithSource: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
-					 RETURN
-			END;
 
-	(*		err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf[0]), 0);
-			KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln; 
-	*)									
-			err := CL.clBuildProgram(prog, 0, NIL, "", 0, 0);
-			IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clBuildProgram: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
-					err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), 0);
-					KernelLog.String("Build Log : "); KernelLog.Ln; 
-					KernelLog.String(buf); KernelLog.Ln; 					 
-					 RETURN
-			END;		
-		
-			kernel := CL.clCreateKernel(prog, "rotateImage", err); 
-			IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clCreateKernel: ");  KernelLog.String(Utils.ErrorToStr(err)); KernelLog.Ln; 
-					 RETURN
-			END;					
-			inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) & (err=0);
+		globalWorkSize: IVector;
+
+		origin, region: POINTER TO ARRAY OF CL.size_t;
+
+
+PROCEDURE InitCL(): BOOLEAN;
+VAR
+	err: LONGINT;
+	imageSupport: LONGINT;
+	properties: HUGEINT; (* CL.bit_field *)
+	(*bufwritten: LONGINT;*)
+	buf: ARRAY 4096 OF CHAR;
+	bres: BOOLEAN;
+BEGIN
+
+	err := CL.clGetPlatformIDs( 0, 0, S.ADR(nplatforms) );
+	out.String("clGetPlatformIDs nplatforms: "); out.String(Utils.GetError(err)); out.Ln;
+	IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
+		out.String('Error: Cannot get # of platforms!'); out.Ln; out.Update;
+		RETURN FALSE
+	END;
+
+	NEW(platformids, nplatforms);
+
+	err := CL.clGetPlatformIDs( nplatforms, S.ADR(platformids[0]), 0 );
+	out.String("clGetPlatformIDs : "); out.String(Utils.GetError(err)); out.Ln;
+	IF (err # CL.SUCCESS) THEN
+		out.String('Error: Cannot get platforms!'); out.Ln; out.Update;
+		RETURN FALSE
+	END;
+
+    	platform := platformids[0];
+
+	(*  Devices  *)
+
+	 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , S.ADR(ndevices));
+      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
+	        out.String("clGetDeviceIDs Error: "); out.String(Utils.GetError(err)); out.Ln;
+          out.String('Error: Cannot get number of GPU devices!'); out.Ln; out.Update;
+          RETURN FALSE
+       END;
+
+	NEW(deviceids, ndevices);
+	err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, S.ADR(deviceids[0]), 0);
+	out.String("clGetDeviceIDs : "); out.String(Utils.GetError(err)); out.Ln;
+	IF (err # CL.SUCCESS) THEN
+		out.String('Error: Cannot get devices!'); out.Ln; out.Update;
+		RETURN FALSE
+	END;
+	deviceid := deviceids[0];
+
+
+	err := CL.clGetDeviceInfo(deviceid, CL.DEVICE_IMAGE_SUPPORT, S.SIZEOF(CL.cl_int), S.ADR(imageSupport), 0);
+	IF err = CL.SUCCESS THEN
+		IF imageSupport = 0 THEN
+			 KernelLog.String("No Image Support"); KernelLog.Ln;
+			 RETURN FALSE;;
+		 END;
+	ELSE
+		 KernelLog.String("ERROR clGetDeviceInfo: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+		 RETURN FALSE;
+	END;
+
+	context := CL.clCreateContext(0, 1, S.ADR(deviceid), 0 , 0, err);
+	IF err # CL.SUCCESS THEN
+		 KernelLog.String("ERROR clCreateContext: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+		 RETURN FALSE;
+	END;
+
+	(* with event profile *)
+	properties := CL.QUEUE_PROFILING_ENABLE + CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE;
+	commands := CL.clCreateCommandQueue(context, deviceid, properties , err);
+	IF err # CL.SUCCESS THEN
+		 KernelLog.String("ERROR clCreateCommandQueue: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+		 RETURN FALSE;
+	END;
+
+	kernelsource := MyProgramSource();
+	prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), 0, err);
+	IF err # CL.SUCCESS THEN
+		 KernelLog.String("ERROR clCreateProgramWithSource: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+		 RETURN FALSE;
+	END;
+
+(*	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf[0]), 0);
+	KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln;
+*)
+	err := CL.clBuildProgram(prog, 0, 0, "", 0, 0);
+	IF err # CL.SUCCESS THEN
+		KernelLog.String("ERROR clBuildProgram: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+		err := CL.clGetProgramBuildInfo(prog, deviceid, CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), 0);
+		KernelLog.String("Build Log : "); KernelLog.Ln;
+		KernelLog.String(buf); KernelLog.Ln;
+		RETURN FALSE;
+	END;
+
+	kernel := CL.clCreateKernel(prog, "rotateImage", err);
+	IF err # CL.SUCCESS THEN
+		 KernelLog.String("ERROR clCreateKernel: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+		 RETURN FALSE;
+	END;
+
+	RETURN TRUE;
 END InitCL;
 
- PROCEDURE initImageMem();
+ PROCEDURE initImageMem(inputImage0 :Raster.Image);
  VAR imageFormat, imfmt: CL.cl_image_format;
- 	  	
+
  	err, ret: LONGINT;
  	tmp: LONGINT;
  BEGIN
         (* Create the memory object for the input- and output image *)
-		IF ~ inited THEN RETURN END;
 
-		
-        imageFormat.image_channel_order := CL.RGBA;
-        imageFormat.image_channel_data_type := CL.UNSIGNED_INT8;
+		NEW(origin,3); 	NEW(region,3);
+		globalWorkSize := [inputImage0.width, inputImage0.height];
+
+		imageFormat.image_channel_order := CL.RGBA;
+		imageFormat.image_channel_data_type := CL.UNSIGNED_INT8;
 
         inputImageMem := CL.clCreateImage2D(
-            context, S.VAL(HUGEINT, {CL.MEM_READ_ONLY, CL.MEM_USE_HOST_PTR}),
-            imageFormat, sizeX, sizeY,
-            sizeX * S.SIZEOF(CL.cl_uint), inputImage.adr, err);
+            context, CL.MEM_READ_ONLY+ CL.MEM_USE_HOST_PTR,
+            imageFormat, inputImage0.width, inputImage0.height,
+            inputImage0.width * S.SIZEOF(CL.cl_uint), inputImage0.adr, err);
 	   IF err # CL.SUCCESS THEN
-		  KernelLog.String("ERROR inputImageMem clCreateImage2D: ");  KernelLog.String(Utils.ErrorToStr(err)); 
-		  KernelLog.Ln;   
-	   END;	
+		  KernelLog.String("ERROR inputImageMem clCreateImage2D: ");  KernelLog.String(Utils.GetError(err));
+		  KernelLog.Ln;
+	   END;
+
+	  (* create empty outputImageMem with the same size and type *)
         outputImageMem := CL.clCreateImage2D(
             context, CL.MEM_WRITE_ONLY,
-            imageFormat, sizeX, sizeY, 0, 0, err);
+            imageFormat, inputImage0.width, inputImage0.height, 0, 0, err);
  	   IF err # CL.SUCCESS THEN
-		  KernelLog.String("ERROR outputImageMem clCreateImage2D: ");  KernelLog.String(Utils.ErrorToStr(err)); 
-		  KernelLog.Ln;   
+		  KernelLog.String("ERROR outputImageMem clCreateImage2D: ");  KernelLog.String(Utils.GetError(err));
+		  KernelLog.Ln;
 	   END;
 (*	   err := CL.clGetImageInfo(inputImageMem, CL.IMAGE_FORMAT, S.SIZEOF(CL.cl_image_format), S.ADR(imfmt), S.ADR(ret));
 	   IF err # CL.SUCCESS THEN
-		  KernelLog.String("ERROR clGetImageInfo - Format: ");  KernelLog.String(Utils.ErrorToStr(err)); 
-		  KernelLog.Ln;   
+		  KernelLog.String("ERROR clGetImageInfo - Format: ");  KernelLog.String(Utils.GetError(err));
+		  KernelLog.Ln;
 	  END;
-	  KernelLog.String("inputImage channel_order: ");  KernelLog.String(Utils.ImageFormatString(imfmt.image_channel_order)^); KernelLog.Ln; 
-  	  KernelLog.String("inputImage image_channel_data_type: ");  KernelLog.String(Utils.ImageFormatString(imfmt.image_channel_data_type)^); KernelLog.Ln; 
+	  KernelLog.String("inputImage channel_order: ");  KernelLog.String(Utils.ImageFormatString(imfmt.image_channel_order)^); KernelLog.Ln;
+  	  KernelLog.String("inputImage image_channel_data_type: ");  KernelLog.String(Utils.ImageFormatString(imfmt.image_channel_data_type)^); KernelLog.Ln;
 	  err := CL.clGetImageInfo(inputImageMem, CL.IMAGE_WIDTH, S.SIZEOF(CL.csize_t), S.ADR(tmp), S.ADR(ret));
-	  KernelLog.String("width= "); KernelLog.Int(tmp, 0); KernelLog.Ln; 
+	  KernelLog.String("width= "); KernelLog.Int(tmp, 0); KernelLog.Ln;
 
 	  err := CL.clGetImageInfo(inputImageMem, CL.IMAGE_HEIGHT, S.SIZEOF(CL.csize_t), S.ADR(tmp), S.ADR(ret));
-	  KernelLog.String("height= "); KernelLog.Int(tmp, 0); KernelLog.Ln; 
-*)	  
+	  KernelLog.String("height= "); KernelLog.Int(tmp, 0); KernelLog.Ln;
+*)
 END initImageMem;
 
 
 PROCEDURE Open*(ctx: Commands.Context);
 VAR fname: ARRAY 128 OF CHAR;
-	  im: Raster.Image; 
+
 BEGIN
   IF ~ ctx.arg.GetString(fname) THEN RETURN END;
-   
-  im:= WMGraphics.LoadImage(fname, FALSE);
-  IF im = NIL THEN
-  	KernelLog.String(fname); KernelLog.String(" Not Loaded"); KernelLog.Ln; 
+
+  inputImage:= WMGraphics.LoadImage(fname, FALSE);
+  IF inputImage = NIL THEN
+  	KernelLog.String(fname); KernelLog.String(" Not Loaded"); KernelLog.Ln;
   RETURN
   END;
-  NEW(inputImage);
-  Raster.Create(inputImage, im.width, im.height, Raster.BGRA8888);
-  Raster.Copy(im, inputImage, 0,0,im.width, im.height,0,0, mode);
-  KernelLog.String(fname); KernelLog.String("  loaded.."); KernelLog.Ln; 
- 
-   NEW(outputImage);
-  Raster.Create(outputImage, im.width, im.height, Raster.BGRA8888);
 
-  InitCL;
-  initImageMem();
-  
-    
+  KernelLog.String(fname); KernelLog.String("  loaded.."); KernelLog.Ln;
+
+  NEW(outputImage);
+  Raster.Create(outputImage, inputImage.width, inputImage.height, Raster.BGRA8888);
+
+  IF ~ InitCL() THEN RETURN END;
+
+  initImageMem(inputImage);
+ 	inited := TRUE;
   IF window = NIL THEN
 	NEW(window);
- END;	
+ END;
 END Open;
 
 
@@ -329,7 +386,7 @@ VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WM.WindowManager;
 	 err: LONGINT;
-	 
+
 BEGIN {EXCLUSIVE}
 	NEW(die); msg.ext := die; msg.msgType := WMMessages.MsgExt;
 	m := WM.GetDefaultManager();
@@ -343,8 +400,8 @@ BEGIN {EXCLUSIVE}
 		err := CL.clReleaseKernel(kernel);
 		err := CL.clReleaseProgram(prog);
 		err := CL.clReleaseCommandQueue(commands);
-		err := CL.clReleaseContext(context);	
-	END;	
+		err := CL.clReleaseContext(context);
+	END;
 END Cleanup;
 
 
@@ -353,7 +410,7 @@ VAR sw: Streams.StringWriter;
       buf: CL.PChar;
 BEGIN
 NEW(sw,1024);
-	   sw.Ln;	
+	   sw.Ln;
         sw.String("const sampler_t samplerIn =") ; sw.Ln;
         sw.String("    CLK_NORMALIZED_COORDS_FALSE |"); sw.Ln;
         sw.String("    CLK_ADDRESS_CLAMP |"); sw.Ln;
@@ -389,19 +446,25 @@ NEW(sw,1024);
  NEW(buf, sw.Pos());
  sw.Get(buf^);
  RETURN S.VAL(CL.PChar, S.ADR(buf[0]));
- 	
+
 END MyProgramSource;
 
 BEGIN
 	Modules.InstallTermHandler(Cleanup);
 	Raster.InitMode(mode, Raster.srcCopy);
+	Streams.OpenWriter(out, KernelLog.Send);
 END MyImageRotateCL.
 
-SystemTools.Free  MyImageRotateCL~ 
+SystemTools.FreeDownTo OpenCL ~
+
+SystemTools.Free  MyImageRotateCL~
 
 MyImageRotateCL.Open "mars.png" ~
 
 MyImageRotateCL.Open "BluebottlePic0.png" ~
 
-MyImageRotateCL.Open "test.bmp" ~
+MyImageRotateCL.Open "test.bmp"
+
+MyImageRotateCL.Open "WMIcons.tar://WMKernelLog.png" ~
+
 
