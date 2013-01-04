@@ -263,8 +263,8 @@ TYPE
 	 		cleditor.editor.GetAsString(buf);
 	 		optionscleditor.GetAsString(options);
 
-	 		pbuf := S.VAL(CL.PChar, S.ADR(buf[0]));
-			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, err);
+	 		pbuf := S.VAL(CL.PChar, ADDRESSOF(buf[0]));
+			prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(pbuf), 0, err);
 			IF prog # 0 THEN
 
 				err := CL.clBuildProgram(prog, 0, 0, options, 0, 0);
@@ -272,10 +272,10 @@ TYPE
 
 				IF err  # CL.SUCCESS THEN
 						KernelLog.String("Build Status = "); KernelLog.Int(status, 0); KernelLog.Ln;
-						err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(log), S.ADR(log[0]), 0);
+						err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(log), ADDRESSOF(log[0]), 0);
 						logcleditor.SetAsString(log);
 				ELSE
-					err := CL.clGetProgramInfo(prog, CL.PROGRAM_BINARY_SIZES, S.SIZEOF(CL.size_t), S.ADR(binarysize), 0);
+					err := CL.clGetProgramInfo(prog, CL.PROGRAM_BINARY_SIZES, SIZEOF(CL.size_t), ADDRESSOF(binarysize), 0);
 					IF err = CL.SUCCESS THEN
 					  KernelLog.String("Program Binary Size= "); KernelLog.Int(binarysize, 0);  KernelLog.String(" bytes."); KernelLog.Ln;
 					END;
@@ -328,18 +328,18 @@ PROCEDURE InitCL;
 VAR err, err1, err2, err3: LONGINT;
 BEGIN
 	clinited := FALSE;
-	err := CL.clGetPlatformIDs( 1, S.ADR(platformids), 0 );
+	err := CL.clGetPlatformIDs( 1, ADDRESSOF(platformids), 0 );
 	IF err # CL.SUCCESS THEN
 		KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		RETURN
 	END;
-	err1 := CL.clGetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, S.ADR(deviceids), 0);
+	err1 := CL.clGetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, ADDRESSOF(deviceids), 0);
 	IF err1 # CL.SUCCESS THEN
 		KernelLog.String(Utils.GetError(err1)); KernelLog.Ln;
 		RETURN
 	END;
 
-	context := CL.clCreateContext(0, 1, S.ADR(deviceids), 0 , 0, err2);
+	context := CL.clCreateContext(0, 1, ADDRESSOF(deviceids), 0 , 0, err2);
 	IF err2# CL.SUCCESS THEN
 		KernelLog.String(Utils.GetError(err2)); KernelLog.Ln;
 		RETURN
@@ -424,7 +424,7 @@ SystemTools.Free OpenCLBuild ~
 
 SystemTools.FreeDownTo OpenCL ~
 
-OpenCLBuild.Open  vectorsquare.cl ~
+OpenCLBuild.Open  opencloberon/vectorsquare.cl ~
 
 
 OpenCLBuild.ReadThisKernel  __kernel void empty(float x)

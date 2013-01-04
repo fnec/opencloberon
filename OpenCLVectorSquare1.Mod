@@ -27,7 +27,7 @@ BEGIN
  sw.String("  }"); 									sw.Ln;
  NEW(buf, sw.Pos());
  sw.Get(buf^);
- RETURN S.VAL(CL.PChar, S.ADR(buf[0]));
+ RETURN S.VAL(CL.PChar, ADDRESSOF(buf[0]));
 END MyKernelSource;
 
 (* using array of chars *)
@@ -36,7 +36,7 @@ VAR
       buf: ARRAY 1024 OF CHAR;
 BEGIN
  buf :=" __kernel void square(__global float* input, __global float* output, const unsigned int count)   {  int i  = get_global_id(0);  if(i < count)      output[i] = input[i] * input[i]; } ";
- RETURN S.VAL(CL.PChar, S.ADR(buf[0]));
+ RETURN S.VAL(CL.PChar, ADDRESSOF(buf[0]));
 END MyKernelSource2;
 
 (* using DynamicString *)
@@ -52,7 +52,7 @@ BEGIN
  ds.Append("         output[i] = input[i] * input[i];"); ds.Append(CRLF);
  ds.Append("  }"); 									ds.Append(CRLF);
  buf := ds.ToArrOfChar();
- RETURN S.VAL(Strings.String, S.ADR(buf^[0]));
+ RETURN S.VAL(Strings.String, ADDRESSOF(buf^[0]));
 END MyKernelSource3;
 
 PROCEDURE Test*;
@@ -100,7 +100,7 @@ BEGIN
 
 	FOR i:=0 TO count - 1 DO data[i]:=i; END;
 
-	err := CL.clGetPlatformIDs( 0, 0, S.ADR(nplatforms) );
+	err := CL.clGetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
 	wr.String("clGetPlatformIDs nplatforms: "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
 		wr.String('Error: Cannot get # of platforms!'); wr.Ln; wr.Update;
@@ -109,7 +109,7 @@ BEGIN
 
 	NEW(platformids, nplatforms);
 
-	err := CL.clGetPlatformIDs( nplatforms, S.ADR(platformids[0]), 0 );
+	err := CL.clGetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
 	wr.String("clGetPlatformIDs : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Cannot get platforms!'); wr.Ln; wr.Update;
@@ -120,7 +120,7 @@ BEGIN
 
 	(*  Devices  *)
 
-	 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , S.ADR(ndevices));
+	 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
       IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
 	        wr.String("clGetDeviceIDs Error: "); wr.String(Utils.GetError(err)); wr.Ln;
           wr.String('Error: Cannot get number of GPU devices!'); wr.Ln; wr.Update;
@@ -128,7 +128,7 @@ BEGIN
        END;
 
 	NEW(deviceids, ndevices);
-	err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, S.ADR(deviceids[0]), 0);
+	err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
 	wr.String("clGetDeviceIDs : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Cannot get devices!'); wr.Ln; wr.Update;
@@ -136,7 +136,7 @@ BEGIN
 	END;
 	deviceid := deviceids[0];
 
-	context := CL.clCreateContext(0, 1, S.ADR(deviceid), 0 , 0, err);
+	context := CL.clCreateContext(0, 1, ADDRESSOF(deviceid), 0 , 0, err);
 	wr.String("clContext : "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 	IF context = 0 THEN
 		wr.String('Error: Cannot create context!'); wr.Ln; wr.Update;
@@ -150,7 +150,7 @@ BEGIN
 		RETURN
 	END;
 
-(*	kernelsource := Utils.LoadProgramSource("vectorsquare.cl", ""); *)
+(*	kernelsource := Utils.LoadProgramSource("opencloberon/vectorsquare.cl", ""); *)
 (*	kernelsource := MyKernelSource(); *)
 (*	kernelsource := MyKernelSource2();*)
 	kernelsource := MyKernelSource3();
@@ -158,18 +158,19 @@ BEGIN
 		wr.String(" File Load Error"); wr.Ln; wr.Update; wr.Ln;
 		RETURN;
 	END;
-buf :=" __kernel void square(__global float* input, __global float* output, const unsigned int count)   {  int i  = get_global_id(0);  if(i < count)      output[i] = input[i] * input[i]; } ";
-pbuf := S.VAL(CL.PChar, S.ADR(buf[0]));
+	buf :=" __kernel void square(__global float* input, __global float* output, const unsigned int count)   {  int i  = get_global_id(0);  if(i < count)      output[i] = input[i] * input[i]; } ";
+	pbuf := S.VAL(CL.PChar, ADDRESSOF(buf[0]));
+	
     (* Create the compute program from the source buffer *)
-(*	prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), NIL, err);*)
-prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
+	(*	prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(kernelsource), NIL, err);*)
+	prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(pbuf), 0, bufwritten);
 	wr.String("clCreateProgramWithSource : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF prog = 0 THEN
 		wr.String("prog NIL: "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 		RETURN
 	END;
 
-	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf), bufwritten);
+	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
 	wr.String("clGetProgramInfo : "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: clGetProgramInfo!'); wr.Ln; wr.Update;
@@ -179,7 +180,7 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	wr.String("Prog Source: "); wr.Ln;
 	wr.String(buf); wr.Ln; wr.Update;
 
-	err := CL.clGetProgramInfo(prog, CL.PROGRAM_NUM_DEVICES, S.SIZEOF(LONGINT), S.ADR(dumy), bufwritten);
+	err := CL.clGetProgramInfo(prog, CL.PROGRAM_NUM_DEVICES, SIZEOF(LONGINT), ADDRESSOF(dumy), bufwritten);
 	wr.String("clGetProgramInfo : "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 	IF (err # CL.SUCCESS) THEN
 		wr.String("clGetProgramInfo Error: "); wr.String(Utils.GetError(err)); wr.Ln;
@@ -195,7 +196,7 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 		wr.String('Error: Failed to build program executable!'); wr.Ln; wr.Update;
 	END;
 
-	err := CL.clGetProgramBuildInfo(prog, deviceid,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);
+	err := CL.clGetProgramBuildInfo(prog, deviceid,CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
 	wr.String("clGetProgramBuildInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: clGetProgramBuildInfo!'); wr.Ln; wr.Update;
@@ -212,7 +213,7 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 		RETURN
 	END;
 
-	err := CL.clGetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, S.SIZEOF(LONGINT), S.ADR(local), 0);
+	err := CL.clGetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(local), 0);
 	wr.String("clGetKernelWorkGroupInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: clGetKernelWorkGroupInfo!'); wr.Ln; wr.Update;
@@ -220,10 +221,10 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	END;
 
 	(* Create the input and output arrays in device memory for our calculation *)
-	input := CL.clCreateBuffer(context,  CL.MEM_READ_ONLY,  S.SIZEOF(REAL) * count, 0, err);
+	input := CL.clCreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(REAL) * count, 0, err);
 	wr.String("clCreateBuffer input  : "); wr.String(Utils.GetError(err)); wr.Ln;
 
-	output := CL.clCreateBuffer(context, CL.MEM_WRITE_ONLY, S.SIZEOF(REAL) * count, 0, err);
+	output := CL.clCreateBuffer(context, CL.MEM_WRITE_ONLY, SIZEOF(REAL) * count, 0, err);
 	wr.String("clCreateBuffer output  : "); wr.String(Utils.GetError(err)); wr.Ln;
 
 	IF (input = 0) OR   (output = 0) THEN
@@ -232,7 +233,7 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	END;
 
 	(* Write our data set into the input array in device memory *)
-	err := CL.clEnqueueWriteBuffer(commands, input, CL.CL_TRUE, 0, S.SIZEOF(REAL) * count, S.ADR(data[0]), 0, 0, 0);
+	err := CL.clEnqueueWriteBuffer(commands, input, CL.CL_TRUE, 0, SIZEOF(REAL) * count, ADDRESSOF(data[0]), 0, 0, 0);
 	wr.String("clEnqueueWriteBuffer : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to write source array!'); wr.Ln; wr.Update;
@@ -240,13 +241,13 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	END;
 
 	(* Set the arguments to our compute kernel *)
-	err := CL.clSetKernelArg(kernel, 0, S.SIZEOF(CL.cl_mem), S.ADR(input));
+	err := CL.clSetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(input));
 	wr.String("clSetKernelArg-0 : "); wr.String(Utils.GetError(err)); wr.Ln;
 
-	err := CL.clSetKernelArg(kernel, 1, S.SIZEOF(CL.cl_mem), S.ADR(output));
+	err := CL.clSetKernelArg(kernel, 1, SIZEOF(CL.cl_mem), ADDRESSOF(output));
 	wr.String("clSetKernelArg-1 : "); wr.String(Utils.GetError(err)); wr.Ln;
 
-	err := CL.clSetKernelArg(kernel, 2, S.SIZEOF(CL.cl_uint), S.ADR(count));
+	err := CL.clSetKernelArg(kernel, 2, SIZEOF(CL.cl_uint), ADDRESSOF(count));
 	wr.String("clSetKernelArg-2 : "); wr.String(Utils.GetError(err)); wr.Ln;
 
 	IF (err # CL.SUCCESS) THEN
@@ -255,7 +256,7 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	END;
 
 	(* Get the maximum work group size for executing the kernel on the device *)
-	err := CL.clGetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, S.SIZEOF(LONGINT), S.ADR(local), 0);
+	err := CL.clGetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(local), 0);
 	wr.String("clGetKernelWorkGroupInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to retrieve kernel work group info!'); wr.Ln; wr.Update;
@@ -265,7 +266,7 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	(* Execute the kernel over the entire range of our 1d input data set
 		using the maximum number of work group items for this device *)
 	global := count;
-	err := CL.clEnqueueNDRangeKernel(commands, kernel, 1, 0 , S.ADR(global), S.ADR(local), 0, 0, 0);
+	err := CL.clEnqueueNDRangeKernel(commands, kernel, 1, 0 , ADDRESSOF(global), ADDRESSOF(local), 0, 0, 0);
 	wr.String("clEnqueueNDRangeKernel : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to execute kernel!'); wr.Ln; wr.Update;
@@ -277,7 +278,7 @@ prog := CL.clCreateProgramWithSource(context, 1, S.ADR(pbuf), 0, bufwritten);
 	wr.String("clFinish : "); wr.String(Utils.GetError(err)); wr.Ln;
 
 	(* Read back the results from the device to verify the output *)
-	err := CL.clEnqueueReadBuffer( commands, output, CL.CL_TRUE, 0, S.SIZEOF(REAL) * count, S.ADR(results[0]), 0, 0, 0);
+	err := CL.clEnqueueReadBuffer( commands, output, CL.CL_TRUE, 0, SIZEOF(REAL) * count, ADDRESSOF(results[0]), 0, 0, 0);
 	wr.String("EnqueueReadBuffer : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to read output array! '); wr.Ln; wr.Update;

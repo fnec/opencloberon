@@ -1,5 +1,5 @@
 MODULE OpenCLGL; (** AUTHOR "fnecati"; PURPOSE "OpenCL-1.2 cl_gl and cl_gl_ext binding library  for LinuxAos"; *)
-IMPORT SYSTEM, CL := OpenCL;
+IMPORT CL := OpenCL, Unix;
 
 (* ******************************************************************************
  * Copyright (c) 2011 The Khronos Group Inc.
@@ -26,8 +26,6 @@ IMPORT SYSTEM, CL := OpenCL;
 
 
 TYPE
-
-	ADDRESS* = CL.ADDRESS;
 
   	(* scalar types  *)
 	cl_int = CL.cl_int;
@@ -214,30 +212,32 @@ VAR
 	clCreateEventFromGLsyncKHR-: TclCreateEventFromGLsyncKHR;
 
 PROCEDURE Init;
+VAR lib: LONGINT;	
 BEGIN
+	lib := CL.lib;
 	(* cl_gl *)
-	clCreateFromGLBuffer := SYSTEM.VAL(TclCreateFromGLBuffer, CL.GetProcAddress("clCreateFromGLBuffer"));
+	Unix.Dlsym(lib, 'clCreateFromGLBuffer', ADDRESSOF(clCreateFromGLBuffer));
 	IF CL.VERSION_1_2 THEN
-		clCreateFromGLTexture := SYSTEM.VAL(TclCreateFromGLTexture, CL.GetProcAddress("clCreateFromGLTexture"));
+		Unix.Dlsym(lib, 'clCreateFromGLTexture', ADDRESSOF(clCreateFromGLTexture));
 	END;
 
 	IF CL.DEPRECEATED_1_1 THEN
-		clCreateFromGLTexture2D :=  SYSTEM.VAL(TclCreateFromGLTexture2D, CL.GetProcAddress("clCreateFromGLTexture2D"));
-		clCreateFromGLTexture3D := SYSTEM.VAL(TclCreateFromGLTexture3D, CL.GetProcAddress("clCreateFromGLTexture3D"));
+		Unix.Dlsym(lib, 'clCreateFromGLTexture2D', ADDRESSOF(clCreateFromGLTexture2D));
+		Unix.Dlsym(lib, 'clCreateFromGLTexture3D ', ADDRESSOF(clCreateFromGLTexture3D));
 	END;
-	clCreateFromGLRenderbuffer := SYSTEM.VAL(TclCreateFromGLRenderbuffer, CL.GetProcAddress("clCreateFromGLRenderbuffer"));
-	clGetGLObjectInfo := SYSTEM.VAL(TclGetGLObjectInfo, CL.GetProcAddress("clGetGLObjectInfo"));
-	clGetGLTextureInfo := SYSTEM.VAL(TclGetGLTextureInfo, CL.GetProcAddress("clGetGLTextureInfo"));
-	clEnqueueAcquireGLObjects := SYSTEM.VAL(TclEnqueueAcquireGLObjects, CL.GetProcAddress("clEnqueueAcquireGLObjects"));
-	clEnqueueReleaseGLObjects := SYSTEM.VAL(TclEnqueueReleaseGLObjects, CL.GetProcAddress("clEnqueueReleaseGLObjects"));
+	Unix.Dlsym(lib, 'clCreateFromGLRenderbuffer', ADDRESSOF(clCreateFromGLRenderbuffer));
+	Unix.Dlsym(lib, 'clGetGLObjectInfo', ADDRESSOF(clGetGLObjectInfo));
+	Unix.Dlsym(lib, 'clGetGLTextureInfo', ADDRESSOF(clGetGLTextureInfo));
+	Unix.Dlsym(lib, 'clEnqueueAcquireGLObjects', ADDRESSOF(clEnqueueAcquireGLObjects));
+	Unix.Dlsym(lib, 'clEnqueueReleaseGLObjects', ADDRESSOF(clEnqueueReleaseGLObjects));
 
 
-	clGetGLContextInfoKHR := SYSTEM.VAL( TclGetGLContextInfoKHR, CL.clGetExtensionFunctionAddress("clGetGLContextInfoKHR"));
+	Unix.Dlsym(lib, 'clGetGLContextInfoKHR', ADDRESSOF(clGetGLContextInfoKHR));
 (*	KernelLog.String("clGetGLContextInfoKHR=NIL:  "); KernelLog.Boolean(clGetGLContextInfoKHR=NIL); KernelLog.Ln; *)
 
 	(* cl_gl_ext *)
 	IF CL.VERSION_1_1 THEN
-		clCreateEventFromGLsyncKHR := SYSTEM.VAL( TclCreateEventFromGLsyncKHR, CL.clGetExtensionFunctionAddress("clCreateEventFromGLsyncKHR"));
+		Unix.Dlsym(lib, 'clCreateEventFromGLsyncKHR', ADDRESSOF(clCreateEventFromGLsyncKHR));
 	END;
 
 

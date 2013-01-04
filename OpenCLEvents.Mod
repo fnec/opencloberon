@@ -21,7 +21,7 @@ BEGIN
  sw.String("  }"); 								sw.Ln;
  NEW(buf, sw.Pos());
  sw.Get(buf^);
- RETURN S.VAL(CL.PChar, S.ADR(buf[0]));
+ RETURN S.VAL(CL.PChar, ADDRESSOF(buf[0]));
 END MyProgramSource0;
 
 (* c[i] := a[i] .* b[i] *)
@@ -37,7 +37,7 @@ BEGIN
  sw.String("  }"); 								sw.Ln;
  NEW(buf, sw.Pos());
  sw.Get(buf^);
- RETURN S.VAL(CL.PChar, S.ADR(buf[0]));
+ RETURN S.VAL(CL.PChar, ADDRESSOF(buf[0]));
 END MyProgramSource1;
 
 (* calculate execution time for the event *)
@@ -46,8 +46,8 @@ VAR sec: LONGREAL;
 	 err: LONGINT;
 	 endtime, starttime: HUGEINT;
 BEGIN
-	err := CL.clGetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, S.SIZEOF(HUGEINT), S.ADR(endtime),0);
-	err := CL.clGetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, S.SIZEOF(HUGEINT), S.ADR(starttime), 0);
+	err := CL.clGetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, SIZEOF(HUGEINT), ADDRESSOF(endtime),0);
+	err := CL.clGetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, SIZEOF(HUGEINT), ADDRESSOF(starttime), 0);
 
 	sec := 1.0D-3*(endtime-starttime);   (* ns -> us *)
 	wr.FloatFix(sec, 20,3,0); wr.String(" us.");
@@ -103,7 +103,7 @@ BEGIN
 	FOR i:=0 TO n - 1 DO srcArrayA[i]:=i; srcArrayB[i]:=i; END;
 
 	(* get the platfoms *)
-	err := CL.clGetPlatformIDs( 0, 0, S.ADR(nplatforms) );
+	err := CL.clGetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
 	wr.String("clGetPlatformIDs nplatforms: "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
 		wr.String('Error: Cannot get # of platforms!'); wr.Ln; wr.Update;
@@ -112,7 +112,7 @@ BEGIN
 
 	NEW(platformids, nplatforms);
 
-	err := CL.clGetPlatformIDs( nplatforms, S.ADR(platformids[0]), 0 );
+	err := CL.clGetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
 	wr.String("clGetPlatformIDs : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Cannot get platforms!'); wr.Ln; wr.Update;
@@ -123,7 +123,7 @@ BEGIN
 
 	(*  Devices  *)
 
-	 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , S.ADR(ndevices));
+	 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
       IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
 	        wr.String("clGetDeviceIDs Error: "); wr.String(Utils.GetError(err)); wr.Ln;
           wr.String('Error: Cannot get number of GPU devices!'); wr.Ln; wr.Update;
@@ -131,7 +131,7 @@ BEGIN
        END;
 
 	NEW(deviceids, ndevices);
-	err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, S.ADR(deviceids[0]), 0);
+	err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
 	wr.String("clGetDeviceIDs : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Cannot get devices!'); wr.Ln; wr.Update;
@@ -139,7 +139,7 @@ BEGIN
 	END;
 	deviceid := deviceids[0];
 
-	context := CL.clCreateContext(0, 1, S.ADR(deviceid), 0 , 0, err);
+	context := CL.clCreateContext(0, 1, ADDRESSOF(deviceid), 0 , 0, err);
 	wr.String("clCreateContext : "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 	IF context = 0 THEN
 		wr.String('Error: Cannot create context!'); wr.Ln; wr.Update;
@@ -156,7 +156,7 @@ BEGIN
 	END;
   (* ******************* *)
 	(* for testing *)
-    err := CL.clGetCommandQueueInfo(commands, CL.QUEUE_PROPERTIES, S.SIZEOF(HUGEINT), S.ADR(commandprops), S.ADR(itemp));
+    err := CL.clGetCommandQueueInfo(commands, CL.QUEUE_PROPERTIES, SIZEOF(HUGEINT), ADDRESSOF(commandprops), ADDRESSOF(itemp));
    wr.String("commands properties= "); wr.Int(SHORT(commandprops),0); wr.Ln; wr.Update;
    wr.String("commandinfo returned bytes itemp0= "); wr.Int(itemp,0); wr.Ln; wr.Update;
 	wr.String("clGetCommandQueueInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
@@ -167,14 +167,14 @@ BEGIN
 
       (*************************************)
       (* allocate device memory objects   *)
-	srcMemA := CL.clCreateBuffer(context,  CL.MEM_READ_ONLY,  S.SIZEOF(REAL) * n, 0, err);
-	srcMemB := CL.clCreateBuffer(context,  CL.MEM_READ_ONLY,  S.SIZEOF(REAL) * n, 0, err);
+	srcMemA := CL.clCreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(REAL) * n, 0, err);
+	srcMemB := CL.clCreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(REAL) * n, 0, err);
 
-	dstMem0 := CL.clCreateBuffer(context, CL.MEM_READ_WRITE, S.SIZEOF(REAL) * n, 0, err);
-	dstMem1 := CL.clCreateBuffer(context, CL.MEM_READ_WRITE, S.SIZEOF(REAL) * n, 0, err);
+	dstMem0 := CL.clCreateBuffer(context, CL.MEM_READ_WRITE, SIZEOF(REAL) * n, 0, err);
+	dstMem1 := CL.clCreateBuffer(context, CL.MEM_READ_WRITE, SIZEOF(REAL) * n, 0, err);
 
-	err := CL.clEnqueueWriteBuffer(commands, srcMemA, CL.CL_TRUE, 0, n * S.SIZEOF(REAL), S.ADR(srcArrayA[0]), 0, 0, 0);
-	err := CL.clEnqueueWriteBuffer(commands, srcMemB, CL.CL_TRUE, 0, n * S.SIZEOF(REAL), S.ADR(srcArrayB[0]), 0, 0, 0);
+	err := CL.clEnqueueWriteBuffer(commands, srcMemA, CL.CL_TRUE, 0, n * SIZEOF(REAL), ADDRESSOF(srcArrayA[0]), 0, 0, 0);
+	err := CL.clEnqueueWriteBuffer(commands, srcMemB, CL.CL_TRUE, 0, n * SIZEOF(REAL), ADDRESSOF(srcArrayB[0]), 0, 0, 0);
 
 	IF (srcMemA = 0) OR  (srcMemB = 0) OR (dstMem0 = 0) OR  (dstMem1 = 0) THEN
 		wr.String("Failed to allocate device memory!  : "); wr.Ln; wr.Update;
@@ -189,7 +189,7 @@ BEGIN
 		RETURN;
 	END;
 
-	prog0 := CL.clCreateProgramWithSource(context, 1, S.ADR(progsource0), 0, err);
+	prog0 := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(progsource0), 0, err);
 	wr.String("clCreateProgramWithSource-0 : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF prog0 = 0 THEN
 		wr.String("prog0 NIL: "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
@@ -202,7 +202,7 @@ BEGIN
 		RETURN;
 	END;
 
-	prog1 := CL.clCreateProgramWithSource(context, 1, S.ADR(progsource1), 0, err);
+	prog1 := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(progsource1), 0, err);
 	wr.String("clCreateProgramWithSource-1 : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF prog1 = 0 THEN
 		wr.String("prog1 NIL: "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
@@ -242,13 +242,13 @@ BEGIN
 (* ************************** *)
 
 	(* Set the arguments to our compute kernels *)
-	err := CL.clSetKernelArg(kernel0, 0, S.SIZEOF(CL.cl_mem), S.ADR(srcMemA));
-	err := CL.clSetKernelArg(kernel0, 1, S.SIZEOF(CL.cl_mem), S.ADR(srcMemB));
-	err := CL.clSetKernelArg(kernel0, 2, S.SIZEOF(CL.cl_mem), S.ADR(dstMem0));
+	err := CL.clSetKernelArg(kernel0, 0, SIZEOF(CL.cl_mem), ADDRESSOF(srcMemA));
+	err := CL.clSetKernelArg(kernel0, 1, SIZEOF(CL.cl_mem), ADDRESSOF(srcMemB));
+	err := CL.clSetKernelArg(kernel0, 2, SIZEOF(CL.cl_mem), ADDRESSOF(dstMem0));
 
-	err := CL.clSetKernelArg(kernel1, 0, S.SIZEOF(CL.cl_mem), S.ADR(srcMemA));
-	err := CL.clSetKernelArg(kernel1, 1, S.SIZEOF(CL.cl_mem), S.ADR(srcMemB));
-	err := CL.clSetKernelArg(kernel1, 2, S.SIZEOF(CL.cl_mem), S.ADR(dstMem1));
+	err := CL.clSetKernelArg(kernel1, 0, SIZEOF(CL.cl_mem), ADDRESSOF(srcMemA));
+	err := CL.clSetKernelArg(kernel1, 1, SIZEOF(CL.cl_mem), ADDRESSOF(srcMemB));
+	err := CL.clSetKernelArg(kernel1, 2, SIZEOF(CL.cl_mem), ADDRESSOF(dstMem1));
 
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to set kernel arguments!!'); wr.Ln; wr.Update;
@@ -260,14 +260,14 @@ BEGIN
 
 	(* Execute the kernels over the entire range of our 1d input data set *)
 	wr.String("0-kernelEvent0: "); wr.Int(kernelEvent0,0); wr.Ln;
-	err := CL.clEnqueueNDRangeKernel(commands, kernel0, 1, 0 , S.ADR(globalWorkSize), 0, 0, 0, S.ADR(kernelEvent0));
+	err := CL.clEnqueueNDRangeKernel(commands, kernel0, 1, 0 , ADDRESSOF(globalWorkSize), 0, 0, 0, ADDRESSOF(kernelEvent0));
 	wr.String("clEnqueueNDRangeKernel-0 : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to execute kernel-0!'); wr.Ln; wr.Update;
 		RETURN
 	END;
 
-	err := CL.clEnqueueNDRangeKernel(commands, kernel1, 1, 0 , S.ADR(globalWorkSize), 0, 0, 0, S.ADR(kernelEvent1));
+	err := CL.clEnqueueNDRangeKernel(commands, kernel1, 1, 0 , ADDRESSOF(globalWorkSize), 0, 0, 0, ADDRESSOF(kernelEvent1));
 	wr.String("clEnqueueNDRangeKernel-1 : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to execute kernel-1!'); wr.Ln; wr.Update;
@@ -276,7 +276,7 @@ BEGIN
 
 	(* ********************* *)
 	(* get event info for testing *)
-   err := CL.clGetEventInfo(kernelEvent0, CL.EVENT_COMMAND_TYPE, S.SIZEOF(LONGINT), S.ADR(itemp),0);
+   err := CL.clGetEventInfo(kernelEvent0, CL.EVENT_COMMAND_TYPE, SIZEOF(LONGINT), ADDRESSOF(itemp),0);
    wr.String("COMMAND_TYPE for kernelEvent0 = "); wr.Hex(itemp, -4); wr.Ln;
 	wr.String("clGetEventInfo-0 : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
@@ -284,7 +284,7 @@ BEGIN
 		RETURN
 	END;
 
-   err := CL.clGetEventInfo(kernelEvent0, CL.EVENT_COMMAND_EXECUTION_STATUS, S.SIZEOF(LONGINT), S.ADR(itemp),0);
+   err := CL.clGetEventInfo(kernelEvent0, CL.EVENT_COMMAND_EXECUTION_STATUS, SIZEOF(LONGINT), ADDRESSOF(itemp),0);
    wr.String("EXECUTION_STATUS for kernelEvent0= "); wr.Hex(itemp, -4); wr.Ln;
 	wr.String("clGetEventInfo-0 : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
@@ -298,15 +298,15 @@ BEGIN
 		NEW(eventlist,2);
 		eventlist[0] := kernelEvent0;
 		eventlist[1] := kernelEvent1;
-		err := CL.clWaitForEvents(2, S.ADR(eventlist[0]));
+		err := CL.clWaitForEvents(2, ADDRESSOF(eventlist[0]));
 
 (*
-	err := CL.clWaitForEvents(1, S.ADR(kernelEvent0));
-	err := CL.clWaitForEvents(1, S.ADR(kernelEvent1));
+	err := CL.clWaitForEvents(1, ADDRESSOF(kernelEvent0));
+	err := CL.clWaitForEvents(1, ADDRESSOF(kernelEvent1));
 *)
 	(* ******************** *)
 
-   err := CL.clGetEventInfo(kernelEvent0, CL.EVENT_COMMAND_EXECUTION_STATUS, S.SIZEOF(LONGINT), S.ADR(itemp),0);
+   err := CL.clGetEventInfo(kernelEvent0, CL.EVENT_COMMAND_EXECUTION_STATUS, SIZEOF(LONGINT), ADDRESSOF(itemp),0);
    wr.String("AFTER: EXECUTION_STATUS for kernelEvent0= "); wr.Hex(itemp, -4); wr.Ln;
 	wr.String("clGetEventInfo-0 : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
@@ -319,18 +319,18 @@ BEGIN
 	wr.String("kernel-1 execution time: ");  ExecutionTime(kernelEvent1); wr.Ln; wr.Update;
 
 	(* Read the results from device to host variable*)
-	err := CL.clEnqueueReadBuffer(commands, dstMem0, CL.CL_TRUE, 0, n * S.SIZEOF(REAL), S.ADR(dstArray0[0]), 0, 0, S.ADR(readEvent0));
-	err := CL.clEnqueueReadBuffer(commands, dstMem1, CL.CL_TRUE, 0, n * S.SIZEOF(REAL), S.ADR(dstArray1[0]), 0, 0, S.ADR(readEvent1));
+	err := CL.clEnqueueReadBuffer(commands, dstMem0, CL.CL_TRUE, 0, n * SIZEOF(REAL), ADDRESSOF(dstArray0[0]), 0, 0, ADDRESSOF(readEvent0));
+	err := CL.clEnqueueReadBuffer(commands, dstMem1, CL.CL_TRUE, 0, n * SIZEOF(REAL), ADDRESSOF(dstArray1[0]), 0, 0, ADDRESSOF(readEvent1));
 
         (* Wait for the the events, i.e. until the results are read *)
         wr.String("Waiting for read events..."); wr.Ln; wr.Update;
         NEW(readeventlist,2);
         readeventlist[0] := readEvent0;
         readeventlist[1] := readEvent1;
-        err := CL.clWaitForEvents(2, S.ADR(readeventlist[0]));
+        err := CL.clWaitForEvents(2, ADDRESSOF(readeventlist[0]));
 (*
-		err := CL.clWaitForEvents(1, S.ADR(readEvent0));
-		err := CL.clWaitForEvents(1, S.ADR(readEvent1));
+		err := CL.clWaitForEvents(1, ADDRESSOF(readEvent0));
+		err := CL.clWaitForEvents(1, ADDRESSOF(readEvent1));
   *)
    	 (*  write timing info for readbuffer *)
    wr.String("read-0 execution time: ");  ExecutionTime(readEvent0);  wr.Ln; wr.Update;

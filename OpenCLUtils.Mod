@@ -30,7 +30,7 @@ BEGIN
 
 	f.ReadBytes(rider, str^, len, f.Length());
 
-	 RETURN S.VAL(PChar, S.ADR(str[0]));
+	 RETURN S.VAL(PChar, ADDRESSOF(str[0]));
 
 END LoadProgramSource;
 

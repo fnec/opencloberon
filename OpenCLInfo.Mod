@@ -33,7 +33,7 @@ VAR i, j, k: LONGINT;
 
 BEGIN
 
-  err := CL.clGetPlatformIDs(0, 0 , S.ADR(nplatforms));
+  err := CL.clGetPlatformIDs(0, 0 , ADDRESSOF(nplatforms));
   IF (err  # CL.SUCCESS) THEN
       wr.String('Error: Cannot get number of platforms!'); wr.Ln; wr.Update;
       RETURN;
@@ -42,7 +42,7 @@ BEGIN
   wr.String("# platforms found = "); wr.Int(nplatforms,0); wr.Ln; wr.Update;
 
   NEW(platformids, nplatforms);
- err := CL.clGetPlatformIDs( nplatforms, S.ADR(platformids[0]), 0 );
+ err := CL.clGetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
   IF (err # CL.SUCCESS) THEN
       wr.String('Error: Cannot get platforms!'); wr.Ln; wr.Update;
       RETURN
@@ -53,26 +53,26 @@ BEGIN
 
       wr.String('Platform info '); wr.Int(i,0); wr.Ln;
 
-     err := CL.clGetPlatformInfo(platformids[i], CL.PLATFORM_PROFILE, LEN(buf), S.ADR(buf[0]), 0);
+     err := CL.clGetPlatformInfo(platformids[i], CL.PLATFORM_PROFILE, LEN(buf), ADDRESSOF(buf[0]), 0);
       wr.String('PROFILE: '); wr.String(buf); wr.Ln;
 
-     err := CL.clGetPlatformInfo(platformids[i],CL.PLATFORM_VERSION, LEN(buf), S.ADR(buf[0]), 0);
+     err := CL.clGetPlatformInfo(platformids[i],CL.PLATFORM_VERSION, LEN(buf), ADDRESSOF(buf[0]), 0);
       wr.String('VERSION: '); wr.String(buf); wr.Ln;
 
-      err := CL.clGetPlatformInfo(platformids[i],CL.PLATFORM_NAME, LEN(buf), S.ADR(buf[0]), 0);
+      err := CL.clGetPlatformInfo(platformids[i],CL.PLATFORM_NAME, LEN(buf), ADDRESSOF(buf[0]), 0);
        wr.String('NAME: '); wr.String(buf); wr.Ln;
 
-      err := CL.clGetPlatformInfo(platformids[i],CL.PLATFORM_VENDOR, LEN(buf), S.ADR(buf[0]), 0);
+      err := CL.clGetPlatformInfo(platformids[i],CL.PLATFORM_VENDOR, LEN(buf), ADDRESSOF(buf[0]), 0);
       wr.String('VENDOR: '); wr.String(buf); wr.Ln;
 
-      err := CL.clGetPlatformInfo(platformids[i], CL.PLATFORM_EXTENSIONS, LEN(buf), S.ADR(buf[0]), 0);
+      err := CL.clGetPlatformInfo(platformids[i], CL.PLATFORM_EXTENSIONS, LEN(buf), ADDRESSOF(buf[0]), 0);
       wr.String('EXTENSIONS: '); wr.String(buf); wr.Ln;
 
       wr.Update;
 
 	(*  Devices  *)
 
-      err := CL.clGetDeviceIDs (platformids[i], CL.DEVICE_TYPE_ALL, 0, 0 , S.ADR(ndevices));
+      err := CL.clGetDeviceIDs (platformids[i], CL.DEVICE_TYPE_ALL, 0, 0 , ADDRESSOF(ndevices));
       IF (err # CL.SUCCESS) THEN
 	        wr.String("clGetDeviceIDs Error: "); wr.String(Utils.GetError(err)); wr.Ln;
           wr.String('Error: Cannot get number of devices!'); wr.Ln; wr.Update;
@@ -86,7 +86,7 @@ BEGIN
 
    NEW(deviceids, ndevices);
 
-      err := CL.clGetDeviceIDs(platformids[i], CL.DEVICE_TYPE_ALL, ndevices, S.ADR(deviceids[0]), 0);
+      err := CL.clGetDeviceIDs(platformids[i], CL.DEVICE_TYPE_ALL, ndevices, ADDRESSOF(deviceids[0]), 0);
           IF (err # CL.SUCCESS) THEN
 	        wr.String("clGetDeviceIDs Error: "); wr.String(Utils.GetError(err)); wr.Ln;
           wr.String('Error: Cannot get number of devices-2!'); wr.Ln; wr.Update;
@@ -98,22 +98,22 @@ BEGIN
          wr.String("*****************************************"); wr.Ln;
           wr.String('Device info:  '); wr.Int(j,0); wr.Ln;
 
-          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_NAME, LEN(buf), S.ADR(buf[0]), 0);
+          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_NAME, LEN(buf), ADDRESSOF(buf[0]), 0);
              wr.String("DEVICE NAME: "); wr.String(buf); wr.Ln;
 
-          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_VENDOR, LEN(buf), S.ADR(buf[0]), 0);
+          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_VENDOR, LEN(buf), ADDRESSOF(buf[0]), 0);
              wr.String("DEVICE VENDOR: "); wr.String(buf); wr.Ln;
 
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DRIVER_VERSION, LEN(buf), S.ADR(buf[0]), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DRIVER_VERSION, LEN(buf), ADDRESSOF(buf[0]), 0);
              wr.String("DRIVER VERSION: "); wr.String(buf); wr.Ln;
 
-        err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_VERSION, LEN(buf), S.ADR(buf[0]), 0);
+        err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_VERSION, LEN(buf), ADDRESSOF(buf[0]), 0);
              wr.String("DEVICE VERSION: "); wr.String(buf); wr.Ln;
 
-        err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_OPENCL_C_VERSION, LEN(buf), S.ADR(buf[0]), 0);
+        err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_OPENCL_C_VERSION, LEN(buf), ADDRESSOF(buf[0]), 0);
         wr.String("DEVICE_OPENCL_C_VERSION: "); wr.String(buf); wr.Ln;
 
-       err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_TYPE,  S.SIZEOF(HUGEINT), S.ADR(devtype), 0);
+       err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_TYPE,  SIZEOF(HUGEINT), ADDRESSOF(devtype), 0);
              wr.String("DEVICE_TYPE: ");
              IF devtype = CL.DEVICE_TYPE_CPU THEN   wr.String("DEVICE_TYPE_CPU");
              ELSIF  devtype = CL.DEVICE_TYPE_GPU THEN wr.String("DEVICE_TYPE_GPU");
@@ -123,58 +123,58 @@ BEGIN
              END;
              wr.Ln;
 
-          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_COMPUTE_UNITS, S.SIZEOF(LONGINT), S.ADR(computeunits), 0);
+          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_COMPUTE_UNITS, SIZEOF(LONGINT), ADDRESSOF(computeunits), 0);
              wr.String("DEVICE_MAX_COMPUTE_UNITS: "); wr.Int(computeunits,0); wr.Ln;
 
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_ITEM_DIMENSIONS, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_ITEM_DIMENSIONS, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_MAX_WORK_ITEM_DIMENSIONS: "); wr.Int(dumy,0); wr.Ln;
 
-          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_ITEM_SIZES,  S.SIZEOF(Int3Array), S.ADR(workitemsize), 0);
+          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_ITEM_SIZES,  SIZEOF(Int3Array), ADDRESSOF(workitemsize), 0);
              wr.String("DEVICE_MAX_WORK_ITEM_SIZES: "); wr.Int(workitemsize[0],5); wr.String(" x "); wr.Int(workitemsize[1],0);  wr.String(" x "); wr.Int(workitemsize[2],0); wr.Ln;
 
-          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_GROUP_SIZE, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_MAX_WORK_GROUP_SIZE: "); wr.Int(dumy,0); wr.Ln;
 
-           err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CLOCK_FREQUENCY, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+           err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CLOCK_FREQUENCY, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_MAX_CLOCK_FREQUENCY: "); wr.Int(dumy,0); wr.String(" MHz"); wr.Ln;
 
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_ADDRESS_BITS, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_ADDRESS_BITS, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_ADDRESS_BITS: "); wr.Int(dumy,0); wr.Ln;
 
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_MEM_ALLOC_SIZE, S.SIZEOF(HUGEINT), S.ADR(memsize), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_MEM_ALLOC_SIZE, SIZEOF(HUGEINT), ADDRESSOF(memsize), 0);
              wr.String("DEVICE_MAX_MEM_ALLOC_SIZE: "); wr.Int(SHORT( memsize DIV (1024*1024)), 0); wr.String(" MByte"); wr.Ln;
 
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_GLOBAL_MEM_SIZE, S.SIZEOF(HUGEINT), S.ADR(memsize), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_GLOBAL_MEM_SIZE, SIZEOF(HUGEINT), ADDRESSOF(memsize), 0);
              wr.String("DEVICE_GLOBAL_MEM_SIZE: "); wr.Int(SHORT( memsize DIV (1024*1024)), 0); wr.String(" MByte"); wr.Ln;
 
 
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_ERROR_CORRECTION_SUPPORT, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_ERROR_CORRECTION_SUPPORT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_ERROR_CORRECTION_SUPPORT: "); IF dumy = CL.CL_FALSE THEN wr.String(" no"); ELSE wr.String(" yes"); END; wr.Ln;
 
-        err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_TYPE, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+        err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_TYPE, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_LOCAL_MEM_TYPE: "); IF dumy = CL.CL_TRUE THEN wr.String(" local"); ELSE wr.String(" global"); END; wr.Ln;
 
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_SIZE,  S.SIZEOF(HUGEINT), S.ADR(memsize), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_SIZE,  SIZEOF(HUGEINT), ADDRESSOF(memsize), 0);
              wr.String("DEVICE_LOCAL_MEM_SIZE: "); wr.Int(SHORT( memsize DIV 1024) , 0); wr.String(" KByte");  wr.Ln;
 
-          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CONSTANT_BUFFER_SIZE, S.SIZEOF(HUGEINT), S.ADR(memsize), 0);
+          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CONSTANT_BUFFER_SIZE, SIZEOF(HUGEINT), ADDRESSOF(memsize), 0);
              wr.String("DEVICE_MAX_CONSTANT_BUFFER_SIZE: "); wr.Int(SHORT( memsize DIV 1024), 0);  wr.String(" KByte");  wr.Ln;
 
-          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_QUEUE_PROPERTIES, S.SIZEOF(HUGEINT), S.ADR(hdumy), 0);
+          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_QUEUE_PROPERTIES, SIZEOF(HUGEINT), ADDRESSOF(hdumy), 0);
 
              IF CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE IN S.VAL(SET,hdumy)  THEN wr.String("DEVICE_QUEUE_PROPERTIES: QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE"); END; wr.Ln;
              IF CL.QUEUE_PROFILING_ENABLE IN S.VAL(SET,hdumy) THEN wr.String("DEVICE_QUEUE_PROPERTIES: QUEUE_PROFILING_ENABLE"); END; wr.Ln;
 
-		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE_SUPPORT, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE_SUPPORT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_MAGE_SUPPORT: "); IF dumy=1 THEN wr.String(" true"); ELSE wr.String(" false"); END; wr.Ln;
 
-		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_READ_IMAGE_ARGS, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_READ_IMAGE_ARGS, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_MAX_READ_IMAGE_ARGS: "); wr.Int(dumy,0); wr.Ln;
 
-		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WRITE_IMAGE_ARGS, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WRITE_IMAGE_ARGS, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("DEVICE_MAX_WRITE_IMAGE_ARGS: "); wr.Int(dumy,0); wr.Ln;
 
-    	   err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_SINGLE_FP_CONFIG, S.SIZEOF(HUGEINT), S.ADR(hdumy), 0);
+    	   err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_SINGLE_FP_CONFIG, SIZEOF(HUGEINT), ADDRESSOF(hdumy), 0);
     	   wr.String("DEVICE_SINGLE_FP_CONFIG: ");
           IF CL.FP_DENORM IN S.VAL(SET,hdumy)  THEN wr.String(" denorms  "); END;
           IF CL.FP_INF_NAN IN S.VAL(SET,hdumy)  THEN wr.String(" INF-quietNaNs  "); END;
@@ -185,20 +185,20 @@ BEGIN
          wr.Ln;
 
 
-      err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_WIDTH, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_WIDTH, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
       wr.String("DEVICE_IMAGE <dim> "); wr.Ln;
              wr.String("     IMAGE2D_MAX_WIDTH: "); wr.Int(dumy,0); wr.Ln;
-      err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_HEIGHT, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_HEIGHT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     IMAGE2D_MAX_HEIGHT: "); wr.Int(dumy,0); wr.Ln;
 
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_WIDTH, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_WIDTH, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     IMAGE3D_MAX_WIDTH: "); wr.Int(dumy,0); wr.Ln;
-        err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_HEIGHT, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+        err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_HEIGHT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     IMAGE3D_MAX_HEIGHT: "); wr.Int(dumy,0); wr.Ln;
-      err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_DEPTH, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_DEPTH, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     IMAGE3D_MAX_DEPTH: "); wr.Int(dumy,0); wr.Ln;
 
-          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_EXTENSIONS, LEN(buf), S.ADR(buf[0]), 0);
+          err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_EXTENSIONS, LEN(buf), ADDRESSOF(buf[0]), 0);
              wr.String("DEVICE EXTENSIONS: "); wr.String(buf); wr.Ln;
 
 	nv_extension_query:= FALSE;
@@ -206,45 +206,45 @@ BEGIN
 	IF Strings.Pos("cl_nv_device_attribute_query", buf) # -1 THEN 	nv_extension_query:= TRUE; END;
 	IF nv_extension_query THEN
 
-	      err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+	      err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_COMPUTE_CAPABILITY_MAJOR_NV, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     DEVICE_COMPUTE_CAPABILITY_NV: "); wr.Int(dumy,0); wr.String(".");
-             err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_COMPUTE_CAPABILITY_MINOR_NV, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+             err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_COMPUTE_CAPABILITY_MINOR_NV, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.Int(dumy,0); wr.Ln;
 
              wr.String("     NUMBER_OF_MULTIPROCESSORS: "); wr.Int(computeunits,0); wr.Ln; (* same as compute units *);
              wr.String("     NUMBER_OF_CUDA_CORES: ? "); wr.Ln;
 
 
-		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_WARP_SIZE_NV, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_WARP_SIZE_NV, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     DEVICE_WARP_SIZE_NV: "); wr.Int(dumy,0); wr.Ln;
 
-		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_GPU_OVERLAP_NV, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_GPU_OVERLAP_NV, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     DEVICE_GPU_OVERLAP_NV: "); IF dumy = CL.CL_TRUE THEN wr.String(" true"); ELSE wr.String(" false"); END; wr.Ln;
 
-		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_KERNEL_EXEC_TIMEOUT_NV, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_KERNEL_EXEC_TIMEOUT_NV, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     DEVICE_KERNEL_EXEC_TIMEOUT_NV: "); IF dumy = CL.CL_TRUE THEN wr.String(" true"); ELSE wr.String(" false"); END; wr.Ln;
 
-		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_INTEGRATED_MEMORY_NV, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+		err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_INTEGRATED_MEMORY_NV, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
              wr.String("     DEVICE_INTEGRATED_MEMORY_NV: "); IF dumy = CL.CL_TRUE THEN wr.String(" true"); ELSE wr.String(" false"); END; wr.Ln;
         END;
 
-      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_CHAR, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_CHAR, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
        wr.String("DEVICE_PREFERRED_VECTOR_WIDTH < t >: ");
        		wr.String(" CHAR  "); wr.Int(dumy,0);
-      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_SHORT, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_SHORT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
 			wr.String(", SHORT "); wr.Int(dumy,0);
 
-      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_INT, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_INT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
 			wr.String(", INT "); wr.Int(dumy,0);
-      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_LONG, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_LONG, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
 			wr.String(", LONG "); wr.Int(dumy,0);
-      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_FLOAT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
 			wr.String(", FLOAT "); wr.Int(dumy,0);
-      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE, S.SIZEOF(LONGINT), S.ADR(dumy), 0);
+      	err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PREFERRED_VECTOR_WIDTH_DOUBLE, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
 			wr.String(", DOUBLE "); wr.Int(dumy,0); wr.Ln;
 
  		 (* get supported image formats *)
-  		context := CL.clCreateContext(0, 1, S.ADR(deviceids[j]), 0 , 0, err);
+  		context := CL.clCreateContext(0, 1, ADDRESSOF(deviceids[j]), 0 , 0, err);
   		IF err # CL.SUCCESS THEN
   			wr.String("ERROR: can not create context: "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
   			RETURN;
@@ -256,10 +256,10 @@ BEGIN
 		END;
 
 	    wr.String("-------------------------------------"); wr.Ln;
-	    err := CL.clGetSupportedImageFormats(context, CL.MEM_READ_ONLY, CL.MEM_OBJECT_IMAGE2D, 0, 0, S.ADR(nimageformats));
+	    err := CL.clGetSupportedImageFormats(context, CL.MEM_READ_ONLY, CL.MEM_OBJECT_IMAGE2D, 0, 0, ADDRESSOF(nimageformats));
 	    IF err = CL.SUCCESS THEN
 	    		NEW(imageformats, nimageformats);
-	    		err := CL.clGetSupportedImageFormats(context, CL.MEM_READ_ONLY, CL.MEM_OBJECT_IMAGE2D, nimageformats, S.ADR(imageformats[0]), 0);
+	    		err := CL.clGetSupportedImageFormats(context, CL.MEM_READ_ONLY, CL.MEM_OBJECT_IMAGE2D, nimageformats, ADDRESSOF(imageformats[0]), 0);
 			IF err = CL.SUCCESS THEN
 	 	   		wr.String(" 2D- Image formats supported : "); wr.Int(nimageformats,0); wr.Ln;
 	    			wr.String(" #          Channel order          Channel Type"); wr.Ln; wr.Update;
@@ -273,10 +273,10 @@ BEGIN
 
 	    imageformats := NIL;
 	    wr.String("-------------------------------------"); wr.Ln;
-	    err := CL.clGetSupportedImageFormats(context, CL.MEM_READ_ONLY, CL.MEM_OBJECT_IMAGE3D, 0, 0, S.ADR(nimageformats));
+	    err := CL.clGetSupportedImageFormats(context, CL.MEM_READ_ONLY, CL.MEM_OBJECT_IMAGE3D, 0, 0, ADDRESSOF(nimageformats));
 	    IF err = CL.SUCCESS THEN
 	    		NEW(imageformats, nimageformats);
-	    		err := CL.clGetSupportedImageFormats(context, CL.MEM_READ_ONLY, CL.MEM_OBJECT_IMAGE3D, nimageformats, S.ADR(imageformats[0]), 0);
+	    		err := CL.clGetSupportedImageFormats(context, CL.MEM_READ_ONLY, CL.MEM_OBJECT_IMAGE3D, nimageformats, ADDRESSOF(imageformats[0]), 0);
 			IF err = CL.SUCCESS THEN
 	 	   		wr.String(" 3D- Image formats supported : "); wr.Int(nimageformats,0); wr.Ln;
 	    			wr.String(" #          Channel order          Channel Type"); wr.Ln; wr.Update;
@@ -290,7 +290,7 @@ BEGIN
 
 	    err := CL.clReleaseContext(context);
 (* *********** *)
-         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PROFILE,  LEN(buf), S.ADR(buf[0]), 0);
+         err := CL.clGetDeviceInfo(deviceids[j],CL.DEVICE_PROFILE,  LEN(buf), ADDRESSOF(buf[0]), 0);
              wr.String("DEVICE PROFILE: "); wr.String(buf); wr.Ln;
 (* *********** *)
 

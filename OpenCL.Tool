@@ -1,23 +1,35 @@
 OpenCL bindings for A2- LinuxAos and WinAos.
 
 # For UnixAos, compile:
-Compiler.Compile Unix.OpenCL.Mod Unix.OpenCLext.Mod Unix.OpenCLGL.Mod~
+Compiler.Compile 
+	opencloberon/Unix.OpenCL.Mod 
+	opencloberon/Unix.OpenCLext.Mod 
+	opencloberon/Unix.OpenCLGL.Mod
+	~
 
 # For WinAos, compile :
-Compiler.Compile Win32.OpenCL.Mod Win32.OpenCLext.Mod Win32.OpenCLGL.Mod~
+Compiler.Compile 
+	opencloberon/Win32.OpenCL.Mod 
+	opencloberon/Win32.OpenCLext.Mod 
+	opencloberon/Win32.OpenCLGL.Mod
+	~
 
 # Compile Utilities:
-Compiler.Compile OpenCLUtils.Mod OpenCLInfo.Mod OpenCLBuild.Mod ~
+Compiler.Compile 
+	opencloberon/OpenCLUtils.Mod 
+	opencloberon/OpenCLInfo.Mod 
+	opencloberon/OpenCLBuild.Mod 
+	~
 
 # Demos:
 Compiler.Compile
-	OpenCLVectorSquare.Mod
-	OpenCLVectorSquare1.Mod
-	MySimpleMandelbrotCL.Mod
-	MyMandelbrotCL.Mod
-	OpenCLEvents.Mod
-	MyImageRotateCL.Mod
-	MyJuliasetCL.Mod
+	opencloberon/OpenCLVectorSquare.Mod
+	opencloberon/OpenCLVectorSquare1.Mod
+	opencloberon/MySimpleMandelbrotCL.Mod
+	opencloberon/MyMandelbrotCL.Mod
+	opencloberon/OpenCLEvents.Mod
+	opencloberon/MyImageRotateCL.Mod
+	opencloberon/MyJuliasetCL.Mod
 ~
 
 # Run demos:

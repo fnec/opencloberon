@@ -41,10 +41,9 @@ VAR
 
 TYPE
 
-	ADDRESS* = Kernel32.ADDRESS;
 	PChar* = POINTER TO ARRAY OF CHAR;
 	(*PPChar* = POINTER TO ARRAY OF PChar;*)
-	size_t* = S.SIZE;
+	size_t* = SIZE;
 	Psize_t* = POINTER TO ARRAY OF size_t;
 
 	intptr_t* = size_t;

@@ -7,7 +7,7 @@ MODULE MyJuliasetCL; (** AUTHOR "fnecati"; PURPOSE "A Raytracing demo using Open
 IMPORT
 	Raster, WMRectangles, WMGraphics, Modules, Strings, Kernel, Random,
 	WM := WMWindowManager,  WMMessages, KernelLog, WMDialogs,
-	S:=SYSTEM, CL := OpenCL, Utils := OpenCLUtils, Streams;
+	CL := OpenCL, Utils := OpenCLUtils, Streams;
 
 CONST
 	WindowWidth = 512; WindowHeight = 512;
@@ -92,7 +92,6 @@ TYPE
 
 		PROCEDURE UpdateImage;
 		VAR err: LONGINT;
-			elapsed: LONGINT;
 			str1, str2 : ARRAY 128 OF CHAR;
 			relapsed: LONGREAL;
 
@@ -107,17 +106,17 @@ TYPE
 				Interpolate(colC, colT, colA, colB );
 			END;
 
-			(* err := CL.clSetKernelArg(kernel, 0, S.SIZEOF(CL.cl_mem), S.ADR(objmem));*)
-			err := CL.clSetKernelArg(kernel, 1, S.SIZEOF(REAL)*LEN(muC,0), S.ADR(muC[0]));
-			err := CL.clSetKernelArg(kernel, 2, S.SIZEOF(REAL)*LEN(colC,0), S.ADR(colC[0]));
-			err := CL.clSetKernelArg(kernel, 3, S.SIZEOF(REAL), S.ADR(epsilon));
+			(* err := CL.clSetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));*)
+			err := CL.clSetKernelArg(kernel, 1, SIZEOF(REAL)*LEN(muC,0), ADDRESSOF(muC[0]));
+			err := CL.clSetKernelArg(kernel, 2, SIZEOF(REAL)*LEN(colC,0), ADDRESSOF(colC[0]));
+			err := CL.clSetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
 
-				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  S.ADR(global[0]), S.ADR(local[0]), 0, 0, S.ADR(kernelEvent));
-				err := CL.clWaitForEvents(1, S.ADR(kernelEvent));
+				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(global[0]), ADDRESSOF(local[0]), 0, 0, ADDRESSOF(kernelEvent));
+				err := CL.clWaitForEvents(1, ADDRESSOF(kernelEvent));
 
 (*				err := CL.clFinish(commands);*)
-				err := CL.clEnqueueReadBuffer( commands, objmem, CL.CL_TRUE, 0,WindowWidth*WindowHeight*4  , mimage.adr, 0, 0, S.ADR(readEvent));
-				err := CL.clWaitForEvents(1, S.ADR(readEvent));
+				err := CL.clEnqueueReadBuffer( commands, objmem, CL.CL_TRUE, 0,WindowWidth*WindowHeight*4  , mimage.adr, 0, 0, ADDRESSOF(readEvent));
+				err := CL.clWaitForEvents(1, ADDRESSOF(readEvent));
 
 				(*  write timing info  *)
 				str1:= "JuliaSetCL:  ";
@@ -213,7 +212,7 @@ BEGIN
 
 	NEW(global,2); NEW(local,2);
 
-	err := CL.clGetPlatformIDs( 0, 0, S.ADR(nplatforms) );
+	err := CL.clGetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
 	out.String("clGetPlatformIDs nplatforms: "); out.String(Utils.GetError(err)); out.Ln;
 	IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
 		out.String('Error: Cannot get # of platforms!'); out.Ln; out.Update;
@@ -222,7 +221,7 @@ BEGIN
 
 	NEW(platformids, nplatforms);
 
-	err := CL.clGetPlatformIDs( nplatforms, S.ADR(platformids[0]), 0 );
+	err := CL.clGetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
 	out.String("clGetPlatformIDs : "); out.String(Utils.GetError(err)); out.Ln;
 	IF (err # CL.SUCCESS) THEN
 		out.String('Error: Cannot get platforms!'); out.Ln; out.Update;
@@ -233,7 +232,7 @@ BEGIN
 
 	(*  Devices  *)
 
-	 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , S.ADR(ndevices));
+	 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
       IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
 	        out.String("clGetDeviceIDs Error: "); out.String(Utils.GetError(err)); out.Ln;
           out.String('Error: Cannot get number of GPU devices!'); out.Ln; out.Update;
@@ -241,7 +240,7 @@ BEGIN
        END;
 
 	NEW(deviceids, ndevices);
-	err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, S.ADR(deviceids[0]), 0);
+	err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
 	out.String("clGetDeviceIDs : "); out.String(Utils.GetError(err)); out.Ln;
 	IF (err # CL.SUCCESS) THEN
 		out.String('Error: Cannot get devices!'); out.Ln; out.Update;
@@ -250,7 +249,7 @@ BEGIN
 	deviceid := deviceids[0];
 
 
-	context := CL.clCreateContext(0, 1, S.ADR(deviceid), 0 , 0, err);
+	context := CL.clCreateContext(0, 1, ADDRESSOF(deviceid), 0 , 0, err);
 	out.String("clCreateContext: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
 	(* with event profile *)
@@ -258,12 +257,12 @@ BEGIN
 	commands := CL.clCreateCommandQueue(context, deviceid, CL.QUEUE_PROFILING_ENABLE + CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, err);
 	out.String("clCreateCommandQueue: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-	kernelsource := Utils.LoadProgramSource("qjulia_kernel.cl", "");
-	prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), 0, err);
+	kernelsource := Utils.LoadProgramSource("opencloberon/qjulia_kernel.cl", "");
+	prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(kernelsource), 0, err);
 	out.String("clCreateProgramWithSource: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
 
-(*	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf), bufwritten);
+(*	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
 	out.String("bufwritten= "); out.Int(bufwritten, 0); out.Ln;
 	out.String("clGetProgramInfoSource= "); out.String(buf); out.Ln;
 
@@ -271,24 +270,24 @@ BEGIN
 	err := CL.clBuildProgram(prog, 0, 0, "", 0, 0);
 	out.String("clBuildProgram: ");  out.String(Utils.GetError(err));out.Ln; out.Update;
 (*
-	err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);
+	err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
 	out.String("bufwritten= "); out.Int(bufwritten, 0); out.Ln;
 	out.String("buf= "); out.String(buf); out.Ln;
 *)
 
 
-	err := CL.clCreateKernelsInProgram(prog, 0,0, S.ADR(bufwritten));
+	err := CL.clCreateKernelsInProgram(prog, 0,0, ADDRESSOF(bufwritten));
 	out.String("clCreateKernelsInProgram: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
 	out.String(" number of kernels in the program = "); out.Int(bufwritten, 0); out.Ln; out.Update;
-	err := CL.clCreateKernelsInProgram(prog, bufwritten, S.ADR(kernel), 0);
+	err := CL.clCreateKernelsInProgram(prog, bufwritten, ADDRESSOF(kernel), 0);
 
 	(*kernel := CL.clCreateKernel(prog, "QJuliaKernel", err); *)
 
-	err := CL.clGetKernelInfo(kernel, CL.KERNEL_FUNCTION_NAME, LEN(buf), S.ADR(buf[0]),0);
+	err := CL.clGetKernelInfo(kernel, CL.KERNEL_FUNCTION_NAME, LEN(buf), ADDRESSOF(buf[0]),0);
 	out.String("Kernelname :"); out.String(buf); out.Ln; out.Update;
 
-	err := CL.clGetKernelWorkGroupInfo(kernel, deviceid, CL.KERNEL_WORK_GROUP_SIZE, S.SIZEOF(LONGINT), S.ADR(MaxWorkGroupSize), 0);
+	err := CL.clGetKernelWorkGroupInfo(kernel, deviceid, CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(MaxWorkGroupSize), 0);
 	out.String("MaxWorkGroupSize= "); out.Int(MaxWorkGroupSize, 0); out.Ln; out.Update;
 
 	IF MaxWorkGroupSize>1 THEN
@@ -309,16 +308,16 @@ BEGIN
 	objmem := CL.clCreateBuffer(context,  CL.MEM_WRITE_ONLY, WindowWidth*WindowHeight*4 , 0, err);
 	out.String("clCreateBuffer: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-	err := CL.clSetKernelArg(kernel, 0, S.SIZEOF(CL.cl_mem), S.ADR(objmem));
+	err := CL.clSetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));
 	out.String("clSetKernelArg-0: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-	err := CL.clSetKernelArg(kernel, 1, S.SIZEOF(REAL)*LEN(muC,0), S.ADR(muC[0]));
+	err := CL.clSetKernelArg(kernel, 1, SIZEOF(REAL)*LEN(muC,0), ADDRESSOF(muC[0]));
 	out.String("clSetKernelArg-1: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-	err := CL.clSetKernelArg(kernel, 2, S.SIZEOF(REAL)*LEN(colC,0), S.ADR(colC[0]));
+	err := CL.clSetKernelArg(kernel, 2, SIZEOF(REAL)*LEN(colC,0), ADDRESSOF(colC[0]));
 	out.String("clSetKernelArg-2: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-	err := CL.clSetKernelArg(kernel, 3, S.SIZEOF(REAL), S.ADR(epsilon));
+	err := CL.clSetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
 	out.String("clSetKernelArg-3: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
 	inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) & (err=0);
@@ -383,8 +382,8 @@ VAR sec: LONGREAL;
 	 err: LONGINT;
 	 endtime, starttime: HUGEINT;
 BEGIN
-	err := CL.clGetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, S.SIZEOF(HUGEINT), S.ADR(endtime),0);
-	err := CL.clGetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, S.SIZEOF(HUGEINT), S.ADR(starttime), 0);
+	err := CL.clGetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, SIZEOF(HUGEINT), ADDRESSOF(endtime),0);
+	err := CL.clGetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, SIZEOF(HUGEINT), ADDRESSOF(starttime), 0);
 
 	sec := 1.0D-6*(endtime-starttime); (* ns->ms *)
 	RETURN sec;

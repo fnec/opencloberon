@@ -1,8 +1,9 @@
 MODULE MySimpleMandelbrotCL; (** AUTHOR "fnecati"; PURPOSE "a Mandelbrot demo using OpenCL"; *)
 
 IMPORT
-	Raster,  WMRectangles, WMGraphics, Modules, Math, Strings, S:=SYSTEM, Kernel,
-	WM := WMWindowManager, WMMessages, CL := OpenCL, Utils := OpenCLUtils, KernelLog;
+	Raster,  WMRectangles, WMGraphics, Modules, Math, Strings, Kernel,
+	WM := WMWindowManager, WMMessages, CL := OpenCL, Utils := OpenCLUtils, 
+	KernelLog;
 
 CONST
 	WindowWidth = 512; WindowHeight = 512;
@@ -76,7 +77,7 @@ TYPE
 		NEW(globalWorkSize,2);
 		globalWorkSize[0] := sizeX; globalWorkSize[1] := sizeY;
 
-		err := CL.clGetPlatformIDs( 0, 0, S.ADR(nplatforms) );
+		err := CL.clGetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
 		KernelLog.String("clGetPlatformIDs nplatforms: "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
 			KernelLog.String('Error: Cannot get # of platforms!'); KernelLog.Ln;
@@ -85,7 +86,7 @@ TYPE
 
 		NEW(platformids, nplatforms);
 
-		err := CL.clGetPlatformIDs( nplatforms, S.ADR(platformids[0]), 0 );
+		err := CL.clGetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
 		KernelLog.String("clGetPlatformIDs : "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) THEN
 			KernelLog.String('Error: Cannot get platforms!'); KernelLog.Ln;
@@ -94,7 +95,7 @@ TYPE
 	    	platform := platformids[0];
 
 		(*  Devices  *)
-		 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , S.ADR(ndevices));
+		 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
 	      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
 		        KernelLog.String("clGetDeviceIDs Error: "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 	          KernelLog.String('Error: Cannot get number of GPU devices!'); KernelLog.Ln;
@@ -102,7 +103,7 @@ TYPE
 	       END;
 
 		NEW(deviceids, ndevices);
-		err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, S.ADR(deviceids[0]), 0);
+		err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
 		KernelLog.String("clGetDeviceIDs : "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) THEN
 			KernelLog.String('Error: Cannot get devices!'); KernelLog.Ln;
@@ -110,13 +111,13 @@ TYPE
 		END;
 		deviceid := deviceids[0];
 
-		context := CL.clCreateContext(0, 1, S.ADR(deviceid), 0 , 0, err);
+		context := CL.clCreateContext(0, 1, ADDRESSOF(deviceid), 0 , 0, err);
 		commands := CL.clCreateCommandQueue(context, deviceid, 0, err);
 
-		kernelsource := Utils.LoadProgramSource("SimpleMandelbrot.cl", "");
-		prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), 0, err);
+		kernelsource := Utils.LoadProgramSource("opencloberon/SimpleMandelbrot.cl", "");
+		prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(kernelsource), 0, err);
 
-(*		err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf), bufwritten);
+(*		err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
 		KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln;
 		KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln;
 *)
@@ -124,12 +125,12 @@ TYPE
 		err := CL.clBuildProgram(prog, 0, 0, "-cl-mad-enable", 0, 0);
 		KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF err # CL.SUCCESS THEN
-			err := CL.clGetProgramBuildInfo(prog, deviceid, CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);
+			err := CL.clGetProgramBuildInfo(prog, deviceid, CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
 			KernelLog.String("Build Log : "); KernelLog.Ln;
 			KernelLog.String(buf); KernelLog.Ln;
 		END;
 
-(*		err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_OPTIONS, LEN(buf), S.ADR(buf[0]), bufwritten);
+(*		err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_OPTIONS, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
 		KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln;
 		KernelLog.String("buf= "); KernelLog.String(buf); KernelLog.Ln;
 *)
@@ -141,8 +142,8 @@ TYPE
 		(* Create and fill the memory object containing the color map *)
 		InitColorMap(256);
 		colormapLength := LEN(colorMap,0);
-		colorMapMem := CL.clCreateBuffer(context, CL.MEM_READ_WRITE, colormapLength*S.SIZEOF(CL.cl_uint), 0, err);
-		err:= CL.clEnqueueWriteBuffer(commands, colorMapMem, CL.CL_TRUE, 0, colormapLength * S.SIZEOF(CL.cl_uint), S.ADR(colorMap[0]), 0, 0, 0);
+		colorMapMem := CL.clCreateBuffer(context, CL.MEM_READ_WRITE, colormapLength*SIZEOF(CL.cl_uint), 0, err);
+		err:= CL.clEnqueueWriteBuffer(commands, colorMapMem, CL.CL_TRUE, 0, colormapLength * SIZEOF(CL.cl_uint), ADDRESSOF(colorMap[0]), 0, 0, 0);
 
 		maxIterations := 1250;
 		x0 := -2.0; y0 := -1.3; x1 := 0.6; y1:= 1.3;
@@ -236,6 +237,14 @@ TYPE
 		UpdateImage;
 	END WheelMove;
 
+	PROCEDURE KeyEvent* (ucs: LONGINT; flags: SET; keysym: LONGINT);
+	BEGIN
+		CASE CHR(ucs) OF
+		 "q": Close;
+		ELSE
+		END;
+	END KeyEvent;
+	
 	PROCEDURE UpdateImage;
 	VAR err: LONGINT;
 		elapsed: LONGINT;
@@ -243,18 +252,18 @@ TYPE
 	BEGIN
 		IF inited THEN
 			Kernel.SetTimer(timer,0);
-			err := CL.clSetKernelArg(kernel, 0, S.SIZEOF(CL.cl_mem), S.ADR(pixelmem));
-			err := CL.clSetKernelArg(kernel, 1, S.SIZEOF(LONGINT), S.ADR(sizeX));
-			err := CL.clSetKernelArg(kernel, 2, S.SIZEOF(LONGINT), S.ADR(sizeY));
-			err := CL.clSetKernelArg(kernel, 3, S.SIZEOF(REAL), S.ADR(x0));
-			err := CL.clSetKernelArg(kernel, 4, S.SIZEOF(REAL), S.ADR(y0));
-			err := CL.clSetKernelArg(kernel, 5, S.SIZEOF(REAL), S.ADR(x1));
-			err := CL.clSetKernelArg(kernel, 6, S.SIZEOF(REAL), S.ADR(y1));
-			err := CL.clSetKernelArg(kernel, 7, S.SIZEOF(LONGINT), S.ADR(maxIterations));
-			err := CL.clSetKernelArg(kernel, 8, S.SIZEOF(CL.cl_mem), S.ADR(colorMapMem));
-			err := CL.clSetKernelArg(kernel, 9, S.SIZEOF(LONGINT), S.ADR(colormapLength));
+			err := CL.clSetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(pixelmem));
+			err := CL.clSetKernelArg(kernel, 1, SIZEOF(LONGINT), ADDRESSOF(sizeX));
+			err := CL.clSetKernelArg(kernel, 2, SIZEOF(LONGINT), ADDRESSOF(sizeY));
+			err := CL.clSetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(x0));
+			err := CL.clSetKernelArg(kernel, 4, SIZEOF(REAL), ADDRESSOF(y0));
+			err := CL.clSetKernelArg(kernel, 5, SIZEOF(REAL), ADDRESSOF(x1));
+			err := CL.clSetKernelArg(kernel, 6, SIZEOF(REAL), ADDRESSOF(y1));
+			err := CL.clSetKernelArg(kernel, 7, SIZEOF(LONGINT), ADDRESSOF(maxIterations));
+			err := CL.clSetKernelArg(kernel, 8, SIZEOF(CL.cl_mem), ADDRESSOF(colorMapMem));
+			err := CL.clSetKernelArg(kernel, 9, SIZEOF(LONGINT), ADDRESSOF(colormapLength));
 
-			err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  S.ADR(globalWorkSize[0]), 0, 0, 0, 0);
+			err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(globalWorkSize[0]), 0, 0, 0, 0);
 			err := CL.clFinish(commands);
 			err := CL.clEnqueueReadBuffer( commands, pixelmem, CL.CL_TRUE, 0,sizeX*sizeY*4  , mimage.adr, 0, 0, 0);
 

@@ -1,5 +1,5 @@
 MODULE OpenCL; (** AUTHOR "fnecati"; PURPOSE "OpenCL-1.2 binding library  for LinuxAos"; *)
-IMPORT S:=SYSTEM, Unix,  Modules, KernelLog;
+IMPORT Unix,  Modules, KernelLog;
 
 (* ******************************************************************************
  * Copyright (c) 2011 The Khronos Group Inc.
@@ -39,13 +39,12 @@ VAR
 
 TYPE
 
-	ADDRESS* = S.ADDRESS;
 	PChar* = POINTER TO ARRAY OF CHAR;
 	(*PPChar* = POINTER TO ARRAY OF PChar;*)
-	size_t* = S.SIZE;
+	size_t* = SIZE;
 	Psize_t* = POINTER TO ARRAY OF size_t;
 
-	intptr_t* = size_t;
+	intptr_t* = ADDRESS; (* size_t *)
 
   	(* scalar types  *)
 	cl_char*     = CHAR; (*-127..+128 *)
@@ -1569,7 +1568,7 @@ PROCEDURE GetProcAddress*(CONST fname: ARRAY OF CHAR): ADDRESS;
 VAR adres: ADDRESS;
 BEGIN
 	Unix.Dlsym(lib,fname, adres);
-	IF ( adres=0) & debug THEN
+	IF ( adres=0) OR debug THEN
 		KernelLog.String("ERROR: function: "); KernelLog.String(fname); KernelLog.String(" NOT found");  KernelLog.Ln;
 	END;
 
@@ -1592,165 +1591,157 @@ BEGIN
 	KernelLog.String(libname); KernelLog.String(" loaded.");  KernelLog.Ln;
 
 	(* Platform APIs *)
-	clGetPlatformIDs := S.VAL(TclGetPlatformIDs, GetProcAddress("clGetPlatformIDs"));
-	clGetPlatformInfo := S.VAL(TclGetPlatformInfo, GetProcAddress("clGetPlatformInfo"));
-
+	Unix.Dlsym(lib, 'clGetPlatformIDs', ADDRESSOF(clGetPlatformIDs));
+	Unix.Dlsym(lib, 'clGetPlatformInfo', ADDRESSOF(clGetPlatformInfo));
 	(*  Device APIs *)
-	clGetDeviceIDs := S.VAL(TclGetDeviceIDs, GetProcAddress("clGetDeviceIDs"));
-	clGetDeviceInfo := S.VAL(TclGetDeviceInfo, GetProcAddress("clGetDeviceInfo"));
+	Unix.Dlsym(lib, 'clGetDeviceIDs', ADDRESSOF(clGetDeviceIDs));
+	Unix.Dlsym(lib, 'clGetDeviceInfo', ADDRESSOF(clGetDeviceInfo));
+	
 	IF VERSION_1_2 THEN
-		clCreateSubDevices := S.VAL(TclCreateSubDevices, GetProcAddress("clCreateSubDevices"));
-		clRetainDevice := S.VAL(TclRetainDevice, GetProcAddress("clRetainDevice"));
-		clReleaseDevice := S.VAL(TclReleaseDevice, GetProcAddress("clReleaseDevice"));
+		Unix.Dlsym(lib, 'clCreateSubDevices', ADDRESSOF(clCreateSubDevices));
+		Unix.Dlsym(lib, 'clRetainDevice', ADDRESSOF(clRetainDevice));
+		Unix.Dlsym(lib, 'clReleaseDevice', ADDRESSOF(clReleaseDevice));
 	END;
+	
 	(*  Context APIs *)
-	clCreateContext := S.VAL(TclCreateContext, GetProcAddress("clCreateContext"));
-	clCreateContextFromType := S.VAL(TclCreateContextFromType, GetProcAddress("clCreateContextFromType"));
-	clRetainContext := S.VAL(TclRetainContext, GetProcAddress("clRetainContext"));
-	clReleaseContext := S.VAL(TclReleaseContext, GetProcAddress("clReleaseContext"));
-	clGetContextInfo := S.VAL(TclGetContextInfo, GetProcAddress("clGetContextInfo"));
-
+	Unix.Dlsym(lib, 'clCreateContext', ADDRESSOF(clCreateContext));
+	Unix.Dlsym(lib, 'clCreateContextFromType', ADDRESSOF(clCreateContextFromType));
+	Unix.Dlsym(lib, 'clRetainContext', ADDRESSOF(clRetainContext));
+	Unix.Dlsym(lib, 'clReleaseContext', ADDRESSOF(clReleaseContext));
+	Unix.Dlsym(lib, 'clGetContextInfo', ADDRESSOF(clGetContextInfo));
+	
 	(*  Command Queue APIs *)
-	clCreateCommandQueue := S.VAL(TclCreateCommandQueue, GetProcAddress("clCreateCommandQueue"));
-	clRetainCommandQueue := S.VAL(TclRetainCommandQueue, GetProcAddress("clRetainCommandQueue"));
-	clReleaseCommandQueue := S.VAL(TclReleaseCommandQueue, GetProcAddress("clReleaseCommandQueue"));
-	clGetCommandQueueInfo := S.VAL(TclGetCommandQueueInfo, GetProcAddress("clGetCommandQueueInfo"));
-
+	Unix.Dlsym(lib, 'clCreateCommandQueue', ADDRESSOF(clCreateCommandQueue));
+	Unix.Dlsym(lib, 'clRetainCommandQueue', ADDRESSOF(clRetainCommandQueue));
+	Unix.Dlsym(lib, 'clReleaseCommandQueue', ADDRESSOF(clReleaseCommandQueue));
+	Unix.Dlsym(lib, 'clGetCommandQueueInfo', ADDRESSOF(clGetCommandQueueInfo));
+	
 	(*  Memory Object APIs *)
-	clCreateBuffer := S.VAL(TclCreateBuffer, GetProcAddress("clCreateBuffer"));
+	Unix.Dlsym(lib, 'clCreateBuffer', ADDRESSOF(clCreateBuffer));
+	
 	IF VERSION_1_1 THEN
-		clCreateSubBuffer := S.VAL(TclCreateSubBuffer, GetProcAddress("clCreateSubBuffer"));
+		Unix.Dlsym(lib, 'clCreateSubBuffer', ADDRESSOF(clCreateSubBuffer));
 	END;
-
+	
 	IF VERSION_1_2 THEN
-		clCreateImage := S.VAL(TclCreateImage, GetProcAddress("clCreateImage"));
+		Unix.Dlsym(lib, 'clCreateImage', ADDRESSOF(clCreateImage));
 	END;
-
-	clRetainMemObject := S.VAL(TclRetainMemObject, GetProcAddress("clRetainMemObject"));
-	clReleaseMemObject := S.VAL(TclReleaseMemObject, GetProcAddress("clReleaseMemObject"));
-	clGetSupportedImageFormats := S.VAL(TclGetSupportedImageFormats, GetProcAddress("clGetSupportedImageFormats"));
-	clGetMemObjectInfo := S.VAL(TclGetMemObjectInfo, GetProcAddress("clGetMemObjectInfo"));
-	clGetImageInfo := S.VAL(TclGetImageInfo, GetProcAddress("clGetImageInfo"));
+	
+	Unix.Dlsym(lib, 'clRetainMemObject', ADDRESSOF(clRetainMemObject));
+	Unix.Dlsym(lib, 'clReleaseMemObject', ADDRESSOF(clReleaseMemObject));
+	Unix.Dlsym(lib, 'clGetSupportedImageFormats', ADDRESSOF(clGetSupportedImageFormats));
+	Unix.Dlsym(lib, 'clGetMemObjectInfo', ADDRESSOF(clGetMemObjectInfo));
+	Unix.Dlsym(lib, 'clGetImageInfo', ADDRESSOF(clGetImageInfo));
+	
 	IF VERSION_1_1 THEN
-		clSetMemObjectDestructorCallback := S.VAL(TclSetMemObjectDestructorCallback, GetProcAddress("clSetMemObjectDestructorCallback"));
+		Unix.Dlsym(lib, 'clSetMemObjectDestructorCallback', ADDRESSOF(clSetMemObjectDestructorCallback));
 	END;
 
 	(*  Sampler APIs *)
-	clCreateSampler := S.VAL(TclCreateSampler, GetProcAddress("clCreateSampler"));
-	clRetainSampler := S.VAL(TclRetainSampler, GetProcAddress("clRetainSampler"));
-	clReleaseSampler := S.VAL(TclReleaseSampler, GetProcAddress("clReleaseSampler"));
-	clGetSamplerInfo := S.VAL(TclGetSamplerInfo, GetProcAddress("clGetSamplerInfo"));
-
+	Unix.Dlsym(lib, 'clCreateSampler', ADDRESSOF(clCreateSampler));
+	Unix.Dlsym(lib, 'clRetainSampler', ADDRESSOF(clRetainSampler));
+	Unix.Dlsym(lib, 'clReleaseSampler', ADDRESSOF(clReleaseSampler));
+	Unix.Dlsym(lib, 'clGetSamplerInfo', ADDRESSOF(clGetSamplerInfo));
+	
 	(*  Program Object APIs *)
-	clCreateProgramWithSource := S.VAL(TclCreateProgramWithSource, GetProcAddress("clCreateProgramWithSource"));
-	clCreateProgramWithBinary := S.VAL(TclCreateProgramWithBinary, GetProcAddress("clCreateProgramWithBinary"));
-
+	Unix.Dlsym(lib, 'clCreateProgramWithSource', ADDRESSOF(clCreateProgramWithSource));
+	Unix.Dlsym(lib, 'clCreateProgramWithBinary', ADDRESSOF(clCreateProgramWithBinary));
 	IF VERSION_1_2 THEN
-		clCreateProgramWithBuiltInKernels := S.VAL(TclCreateProgramWithBuiltInKernels, GetProcAddress("clCreateProgramWithBuiltInKernels"));
+		Unix.Dlsym(lib, 'clCreateProgramWithBuiltInKernels', ADDRESSOF(clCreateProgramWithBuiltInKernels));
 	END;
-
-	clRetainProgram := S.VAL(TclRetainProgram, GetProcAddress("clRetainProgram"));
-	clReleaseProgram := S.VAL(TclReleaseProgram, GetProcAddress("clReleaseProgram"));
-	clBuildProgram := S.VAL(TclBuildProgram, GetProcAddress("clBuildProgram"));
+		Unix.Dlsym(lib, 'clRetainProgram', ADDRESSOF(clRetainProgram));
+		Unix.Dlsym(lib, 'clReleaseProgram', ADDRESSOF(clReleaseProgram));
+		Unix.Dlsym(lib, 'clBuildProgram', ADDRESSOF(clBuildProgram));
 	IF VERSION_1_2 THEN
-		clCompileProgram := S.VAL(TclCompileProgram, GetProcAddress("clCompileProgram"));
-		clLinkProgram := S.VAL(TclLinkProgram, GetProcAddress("clLinkProgram"));
-		clUnloadPlatformCompiler := S.VAL(TclUnloadPlatformCompiler, GetProcAddress("clUnloadPlatformCompiler"));
+		Unix.Dlsym(lib, 'clCompileProgram', ADDRESSOF(clCompileProgram));
+		Unix.Dlsym(lib, 'clLinkProgram', ADDRESSOF(clLinkProgram));
+		Unix.Dlsym(lib, 'clUnloadPlatformCompiler', ADDRESSOF(clUnloadPlatformCompiler));
 	END;
-
-	clGetProgramInfo := S.VAL(TclGetProgramInfo, GetProcAddress("clGetProgramInfo"));
-	clGetProgramBuildInfo := S.VAL(TclGetProgramBuildInfo, GetProcAddress("clGetProgramBuildInfo"));
-
+	Unix.Dlsym(lib, 'clGetProgramInfo', ADDRESSOF(clGetProgramInfo));
+	Unix.Dlsym(lib, 'clGetProgramBuildInfo', ADDRESSOF(clGetProgramBuildInfo));
 	(*  Kernel Object APIs *)
-	clCreateKernel := S.VAL(TclCreateKernel, GetProcAddress("clCreateKernel"));
-	clCreateKernelsInProgram := S.VAL(TclCreateKernelsInProgram, GetProcAddress("clCreateKernelsInProgram"));
-	clRetainKernel := S.VAL(TclRetainKernel, GetProcAddress("clRetainKernel"));
-	clReleaseKernel := S.VAL(TclReleaseKernel, GetProcAddress("clReleaseKernel"));
-	clSetKernelArg := S.VAL(TclSetKernelArg, GetProcAddress("clSetKernelArg"));
-	clGetKernelInfo := S.VAL(TclGetKernelInfo, GetProcAddress("clGetKernelInfo"));
+	Unix.Dlsym(lib, 'clCreateKernel', ADDRESSOF(clCreateKernel));
+	Unix.Dlsym(lib, 'clCreateKernelsInProgram', ADDRESSOF(clCreateKernelsInProgram));
+	Unix.Dlsym(lib, 'clRetainKernel', ADDRESSOF(clRetainKernel));
+	Unix.Dlsym(lib, 'clReleaseKernel', ADDRESSOF(clReleaseKernel));
+	Unix.Dlsym(lib, 'clSetKernelArg', ADDRESSOF(clSetKernelArg));
+	Unix.Dlsym(lib, 'clGetKernelInfo', ADDRESSOF(clGetKernelInfo));
 	IF VERSION_1_2 THEN
-		clGetKernelArgInfo := S.VAL(TclGetKernelArgInfo, GetProcAddress("clGetKernelArgInfo"));
+		Unix.Dlsym(lib, 'clGetKernelArgInfo', ADDRESSOF(clGetKernelArgInfo));
 	END;
-	clGetKernelWorkGroupInfo := S.VAL(TclGetKernelWorkGroupInfo, GetProcAddress("clGetKernelWorkGroupInfo"));
-
+	Unix.Dlsym(lib, 'clGetKernelWorkGroupInfo', ADDRESSOF(clGetKernelWorkGroupInfo));
 	(*  Event Object APIs *)
-	clWaitForEvents := S.VAL(TclWaitForEvents, GetProcAddress("clWaitForEvents"));
-	clGetEventInfo := S.VAL(TclGetEventInfo, GetProcAddress("clGetEventInfo"));
+	Unix.Dlsym(lib, 'clWaitForEvents', ADDRESSOF(clWaitForEvents));
+	Unix.Dlsym(lib, 'clGetEventInfo', ADDRESSOF(clGetEventInfo));
 	IF VERSION_1_1 THEN
-		clCreateUserEvent := S.VAL(TclCreateUserEvent, GetProcAddress("clCreateUserEvent"));
+		Unix.Dlsym(lib, 'clCreateUserEvent', ADDRESSOF(clCreateUserEvent));
 	END;
-	clRetainEvent := S.VAL(TclRetainEvent, GetProcAddress("clRetainEvent"));
-	clReleaseEvent := S.VAL(TclReleaseEvent, GetProcAddress("clReleaseEvent"));
+	Unix.Dlsym(lib, 'clRetainEvent', ADDRESSOF(clRetainEvent));
+	Unix.Dlsym(lib, 'clReleaseEvent', ADDRESSOF(clReleaseEvent));
 	IF VERSION_1_1 THEN
-		clSetUserEventStatus := S.VAL(TclSetUserEventStatus, GetProcAddress("clSetUserEventStatus"));
-		clSetEventCallback := S.VAL(TclSetEventCallback, GetProcAddress("clSetEventCallback"));
+		Unix.Dlsym(lib, 'clSetUserEventStatus', ADDRESSOF(clSetUserEventStatus));
+		Unix.Dlsym(lib, 'clSetEventCallback', ADDRESSOF(clSetEventCallback));
 	END;
-
 	(*  Profiling APIs *)
-	clGetEventProfilingInfo := S.VAL(TclGetEventProfilingInfo, GetProcAddress("clGetEventProfilingInfo"));
-
+	Unix.Dlsym(lib, 'clGetEventProfilingInfo', ADDRESSOF(clGetEventProfilingInfo));
 	(*  Flush and Finish APIs *)
-	clFlush := S.VAL(TclFlush, GetProcAddress("clFlush"));
-	clFinish := S.VAL(TclFinish, GetProcAddress("clFinish"));
-
+	Unix.Dlsym(lib, 'clFlush', ADDRESSOF(clFlush));
+	Unix.Dlsym(lib, 'clFinish', ADDRESSOF(clFinish));
 	(*  Enqueued Commands APIs *)
-	clEnqueueReadBuffer := S.VAL(TclEnqueueReadBuffer, GetProcAddress("clEnqueueReadBuffer"));
+	Unix.Dlsym(lib, 'clEnqueueReadBuffer', ADDRESSOF(clEnqueueReadBuffer));
 	IF VERSION_1_1 THEN
-		clEnqueueReadBufferRect := S.VAL(TclEnqueueReadBufferRect, GetProcAddress("clEnqueueReadBufferRect"));
+		Unix.Dlsym(lib, 'clEnqueueReadBufferRect', ADDRESSOF(clEnqueueReadBufferRect));
 	END;
-	clEnqueueWriteBuffer := S.VAL(TclEnqueueWriteBuffer, GetProcAddress("clEnqueueWriteBuffer"));
+	Unix.Dlsym(lib, 'clEnqueueWriteBuffer', ADDRESSOF(clEnqueueWriteBuffer));
 	IF VERSION_1_1 THEN
-		clEnqueueWriteBufferRect := S.VAL(TclEnqueueWriteBufferRect, GetProcAddress("clEnqueueWriteBufferRect"));
+		Unix.Dlsym(lib, 'clEnqueueWriteBufferRect', ADDRESSOF(clEnqueueWriteBufferRect));
 	END;
 	IF VERSION_1_2 THEN
-		clEnqueueFillBuffer := S.VAL(TclEnqueueFillBuffer, GetProcAddress("clEnqueueFillBuffer"));
+		Unix.Dlsym(lib, 'clEnqueueFillBuffer', ADDRESSOF(clEnqueueFillBuffer));
 	END;
-	clEnqueueCopyBuffer := S.VAL(TclEnqueueCopyBuffer, GetProcAddress("clEnqueueCopyBuffer"));
+	Unix.Dlsym(lib, 'clEnqueueCopyBuffer', ADDRESSOF(clEnqueueCopyBuffer));
 	IF VERSION_1_1 THEN
-		clEnqueueCopyBufferRect := S.VAL(TclEnqueueCopyBufferRect, GetProcAddress("clEnqueueCopyBufferRect"));
+		Unix.Dlsym(lib, 'clEnqueueCopyBufferRect', ADDRESSOF(clEnqueueCopyBufferRect));
 	END;
-
-	clEnqueueReadImage := S.VAL(TclEnqueueReadImage, GetProcAddress("clEnqueueReadImage"));
-	clEnqueueWriteImage := S.VAL(TclEnqueueWriteImage, GetProcAddress("clEnqueueWriteImage"));
+	Unix.Dlsym(lib, 'clEnqueueReadImage', ADDRESSOF(clEnqueueReadImage));
+	Unix.Dlsym(lib, 'clEnqueueWriteImage', ADDRESSOF(clEnqueueWriteImage));
 	IF VERSION_1_2 THEN
-		clEnqueueFillImage := S.VAL(TclEnqueueFillImage, GetProcAddress("clEnqueueFillImage"));
+		Unix.Dlsym(lib, 'clEnqueueFillImage', ADDRESSOF(clEnqueueFillImage));
 	END;
-	clEnqueueCopyImage := S.VAL(TclEnqueueCopyImage, GetProcAddress("clEnqueueCopyImage"));
-	clEnqueueCopyImageToBuffer := S.VAL(TclEnqueueCopyImageToBuffer, GetProcAddress("clEnqueueCopyImageToBuffer"));
-	clEnqueueCopyBufferToImage := S.VAL(TclEnqueueCopyBufferToImage, GetProcAddress("clEnqueueCopyBufferToImage"));
-	clEnqueueMapBuffer := S.VAL(TclEnqueueMapBuffer, GetProcAddress("clEnqueueMapBuffer"));
-	clEnqueueMapImage := S.VAL(TclEnqueueMapImage, GetProcAddress("clEnqueueMapImage"));
-	clEnqueueUnmapMemObject := S.VAL(TclEnqueueUnmapMemObject, GetProcAddress("clEnqueueUnmapMemObject"));
+	Unix.Dlsym(lib, 'clEnqueueCopyImage', ADDRESSOF(clEnqueueCopyImage));
+	Unix.Dlsym(lib, 'clEnqueueCopyImageToBuffer', ADDRESSOF(clEnqueueCopyImageToBuffer));
+	Unix.Dlsym(lib, 'clEnqueueCopyBufferToImage', ADDRESSOF(clEnqueueCopyBufferToImage));
+	Unix.Dlsym(lib, 'clEnqueueMapBuffer', ADDRESSOF(clEnqueueMapBuffer));
+	Unix.Dlsym(lib, 'clEnqueueMapImage', ADDRESSOF(clEnqueueMapImage));
+	Unix.Dlsym(lib, 'clEnqueueUnmapMemObject', ADDRESSOF(clEnqueueUnmapMemObject));
 	IF VERSION_1_2 THEN
-		clEnqueueMigrateMemObjects := S.VAL(TclEnqueueMigrateMemObjects, GetProcAddress("clEnqueueMigrateMemObjects"));
+		Unix.Dlsym(lib, 'clEnqueueMigrateMemObjects', ADDRESSOF(clEnqueueMigrateMemObjects));
 	END;
-	clEnqueueNDRangeKernel := S.VAL(TclEnqueueNDRangeKernel, GetProcAddress("clEnqueueNDRangeKernel"));
-	clEnqueueTask := S.VAL(TclEnqueueTask, GetProcAddress("clEnqueueTask"));
-	clEnqueueNativeKernel := S.VAL(TclEnqueueNativeKernel, GetProcAddress("clEnqueueNativeKernel"));
+	Unix.Dlsym(lib, 'clEnqueueNDRangeKernel', ADDRESSOF(clEnqueueNDRangeKernel));
+	Unix.Dlsym(lib, 'clEnqueueTask', ADDRESSOF(clEnqueueTask));
+	Unix.Dlsym(lib, 'clEnqueueNativeKernel', ADDRESSOF(clEnqueueNativeKernel));
 	IF VERSION_1_2 THEN
-		clEnqueueMarkerWithWaitList := S.VAL(TclEnqueueMarkerWithWaitList, GetProcAddress("clEnqueueMarkerWithWaitList"));
-		clEnqueueBarrierWithWaitList := S.VAL(TclEnqueueBarrierWithWaitList, GetProcAddress("clEnqueueBarrierWithWaitList"));
-		clSetPrintfCallback := S.VAL(TclSetPrintfCallback, GetProcAddress("clSetPrintfCallback"));
+		Unix.Dlsym(lib, 'clEnqueueMarkerWithWaitList', ADDRESSOF(clEnqueueMarkerWithWaitList));
+		Unix.Dlsym(lib, 'clEnqueueBarrierWithWaitList', ADDRESSOF(clEnqueueBarrierWithWaitList));
+		Unix.Dlsym(lib, 'clSetPrintfCallback', ADDRESSOF(clSetPrintfCallback));
 	END;
-
 	IF VERSION_1_2 THEN
 	(* Extension function access*)
-		clGetExtensionFunctionAddressForPlatform := S.VAL(TclGetExtensionFunctionAddressForPlatform, GetProcAddress("clGetExtensionFunctionAddressForPlatform"));
+		Unix.Dlsym(lib, 'clGetExtensionFunctionAddressForPlatform', ADDRESSOF(clGetExtensionFunctionAddressForPlatform));
 	END;
-
 	(* DEPRECATED functions*)
 	IF DEPRECEATED_1_0 THEN
-		clSetCommandQueueProperty := S.VAL(TclSetCommandQueueProperty, GetProcAddress("clSetCommandQueueProperty"));
+		Unix.Dlsym(lib, 'clSetCommandQueueProperty', ADDRESSOF(clSetCommandQueueProperty));
 	END;
 	IF DEPRECEATED_1_1 THEN
-		clCreateImage2D := S.VAL(TclCreateImage2D, GetProcAddress("clCreateImage2D"));
-		clCreateImage3D := S.VAL(TclCreateImage3D, GetProcAddress("clCreateImage3D"));
-		clEnqueueMarker := S.VAL(TclEnqueueMarker, GetProcAddress("clEnqueueMarker"));
-		clEnqueueWaitForEvents := S.VAL(TclEnqueueWaitForEvents, GetProcAddress("clEnqueueWaitForEvents"));
-		clEnqueueBarrier := S.VAL(TclEnqueueBarrier, GetProcAddress("clEnqueueBarrier"));
-		clUnloadCompiler := S.VAL(TclUnloadCompiler, GetProcAddress("clUnloadCompiler"));
+		Unix.Dlsym(lib, 'clCreateImage2D', ADDRESSOF(clCreateImage2D));
+		Unix.Dlsym(lib, 'clCreateImage3D', ADDRESSOF(clCreateImage3D));
+		Unix.Dlsym(lib, 'clEnqueueMarker', ADDRESSOF(clEnqueueMarker));
+		Unix.Dlsym(lib, 'clEnqueueWaitForEvents', ADDRESSOF(clEnqueueWaitForEvents));
+		Unix.Dlsym(lib, 'clEnqueueBarrier', ADDRESSOF(clEnqueueBarrier));
+		Unix.Dlsym(lib, 'clUnloadCompiler', ADDRESSOF(clUnloadCompiler));
 		(* Extension function access*)
-		clGetExtensionFunctionAddress := S.VAL(TclGetExtensionFunctionAddress, GetProcAddress("clGetExtensionFunctionAddress"));
+		Unix.Dlsym(lib, 'clGetExtensionFunctionAddress', ADDRESSOF(clGetExtensionFunctionAddress));
 	END;
 
 END Init;

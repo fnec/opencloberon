@@ -60,8 +60,8 @@ CONST
 TYPE
   TclSetMemObjectDestructorAPPLE* = PROCEDURE {WINAPI}(
                                         memobj: CL.cl_mem; (* memobj *)
-                                        pfn_notify: CL.ADDRESS;(* /*pfn_notify*/)( cl_mem /* memobj */, void* /*user_data*/*)
-                                        user_data: CL.ADDRESS(*user_data *)
+                                        pfn_notify: ADDRESS;(* /*pfn_notify*/)( cl_mem /* memobj */, void* /*user_data*/*)
+                                        user_data: ADDRESS(*user_data *)
                                         ): CL.cl_int;
 
 VAR
@@ -83,27 +83,27 @@ CONST
 TYPE
   TclLogMessagesToSystemLogAPPLE* = PROCEDURE {WINAPI}(
                                             CONST  errstr: ARRAY OF CHAR;  (* errstr *)
-                                            private_info: CL.ADDRESS;        (* private_info *)
+                                            private_info: ADDRESS;        (* private_info *)
                                             cb: CL.size_t;                        (* cb *)
-                                            user_data: CL.ADDRESS                  (* user_data *)
+                                            user_data: ADDRESS                  (* user_data *)
                                             ): CL.cl_int;
 
 
 (* clLogMessagesToStdout sends all log messages to the file descriptor stdout *)
   TclLogMessagesToStdoutAPPLE* = PROCEDURE {WINAPI}(
                                             CONST  errstr: ARRAY OF CHAR;  (* errstr *)
-                                            private_info: CL.ADDRESS;      (* private_info *)
+                                            private_info: ADDRESS;      (* private_info *)
                                             cb: CL.size_t;                        (* cb *)
-                                            user_data: CL.ADDRESS                  (* user_data *)
+                                            user_data: ADDRESS                  (* user_data *)
                                             ): CL.cl_int;
 
 
 (* clLogMessagesToStderr sends all log messages to the file descriptor stderr *)
   TclLogMessagesToStderrAPPLE* = PROCEDURE {WINAPI}(
                                           CONST  errstr: ARRAY OF CHAR;  (* errstr *)
-                                          private_info: CL.ADDRESS;   (* private_info *)
+                                          private_info: ADDRESS;   (* private_info *)
                                           cb: CL.size_t;         (* cb *)
-                                          user_data: CL.ADDRESS                  (* user_data *)
+                                          user_data: ADDRESS                  (* user_data *)
                                           ): CL.cl_int;
 
 
@@ -126,7 +126,7 @@ CONST
 	CL_PLATFORM_NOT_FOUND_KHR* = -1001;
 
 TYPE
-	TclIcdGetPlatformIDsKHR* = PROCEDURE {WINAPI}  (num_entries:  CL.cl_uint ; platforms:  CL.cl_platform_id; num_platforms : CL.ADDRESS):  CL.cl_int;
+	TclIcdGetPlatformIDsKHR* = PROCEDURE {WINAPI}  (num_entries:  CL.cl_uint ; platforms:  CL.cl_platform_id; num_platforms : ADDRESS):  CL.cl_int;
 VAR
 	clIcdGetPlatformIDsKHR-: TclIcdGetPlatformIDsKHR;
 
@@ -363,10 +363,10 @@ TYPE
 
      TclCreateSubDevicesEXT* = PROCEDURE {WINAPI}(
                             in_device: CL.cl_device_id; (*in_device*)
-                            properties: CL.ADDRESS; (* ARRAY OF cl_device_partition_property_ext *)
+                            properties: ADDRESS; (* ARRAY OF cl_device_partition_property_ext *)
                             num_entries: CL.cl_uint; (*num_entries*)
-                            out_devices: CL.ADDRESS; (* ARRAY OF cl_device_id *)
-                            num_devices: CL.ADDRESS (*CL.cl_uint *)
+                            out_devices: ADDRESS; (* ARRAY OF cl_device_id *)
+                            num_devices: ADDRESS (*CL.cl_uint *)
                             ): CL.cl_int;
 VAR
       clCreateSubDevicesEXT-: TclCreateSubDevicesEXT;
@@ -546,11 +546,11 @@ TYPE
 	TclEnqueueMigrateMemObjectEXT* = PROCEDURE {WINAPI}(
                                   command_queue: CL.cl_command_queue;
                                   num_mem_objects: CL.cl_uint;
-                                  mem_objects: CL.ADDRESS; (* ARRAY OF CL.cl_mem *)
+                                  mem_objects: ADDRESS; (* ARRAY OF CL.cl_mem *)
                                   flags: cl_mem_migration_flags_ext;
                                   num_events_in_wait_list: CL.cl_uint;
-                                  event_wait_list: CL.ADDRESS; (* ARRAY OF cl_event *)
-                                  event: CL.ADDRESS (* cl_event *)
+                                  event_wait_list: ADDRESS; (* ARRAY OF cl_event *)
+                                  event: ADDRESS (* cl_event *)
                                   ): CL.cl_int;
 
 VAR

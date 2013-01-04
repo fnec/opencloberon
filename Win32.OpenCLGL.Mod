@@ -1,4 +1,4 @@
-MODULE OpenCLGL; (** AUTHOR "fnecati"; PURPOSE "OpenCL-1.2 cl_gl and cl_gl_ext binding library  for LinuxAos"; *)
+MODULE OpenCLGL; (** AUTHOR "fnecati"; PURPOSE "OpenCL-1.2 cl_gl and cl_gl_ext binding library  for WinAos"; *)
 IMPORT SYSTEM, CL := OpenCL;
 
 (* ******************************************************************************
@@ -26,8 +26,6 @@ IMPORT SYSTEM, CL := OpenCL;
 
 
 TYPE
-
-	ADDRESS* = CL.ADDRESS;
 
   	(* scalar types  *)
 	cl_int = CL.cl_int;

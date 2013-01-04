@@ -1,8 +1,9 @@
 MODULE MyMandelbrotCL; (** AUTHOR "fnecati"; PURPOSE "a Mandelbrot demo using OpenCL"; *)
 
 IMPORT
-	Raster, WMRectangles, WMGraphics, Modules, Strings, S:=SYSTEM, Kernel,
-	WM := WMWindowManager, WMMessages, CL := OpenCL, Utils := OpenCLUtils, KernelLog;
+	Raster, WMRectangles, WMGraphics, Modules, Strings, Kernel,
+	WM := WMWindowManager, WMMessages, CL := OpenCL, Utils := OpenCLUtils, 
+	KernelLog;
 
 CONST
 	WindowWidth = 512; WindowHeight = 512;
@@ -60,8 +61,8 @@ TYPE
 	VAR err: LONGINT;
 	BEGIN
 		IF inited THEN
-			err := CL.clSetKernelArg(kernel, 0, S.SIZEOF(REAL), S.ADR(Left));
-			err := CL.clSetKernelArg(kernel, 1, S.SIZEOF(REAL), S.ADR(Top));
+			err := CL.clSetKernelArg(kernel, 0, SIZEOF(REAL), ADDRESSOF(Left));
+			err := CL.clSetKernelArg(kernel, 1, SIZEOF(REAL), ADDRESSOF(Top));
 			DrawIt;
 		END
 	END SetTopLeft;
@@ -86,7 +87,7 @@ TYPE
 		NEW(global,2);
 		global[0] := WindowWidth; global[1] := WindowHeight;
 
-		err := CL.clGetPlatformIDs( 0, 0, S.ADR(nplatforms) );
+		err := CL.clGetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
 		KernelLog.String("clGetPlatformIDs nplatforms: "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
 			KernelLog.String('Error: Cannot get # of platforms!'); KernelLog.Ln;
@@ -95,7 +96,7 @@ TYPE
 
 		NEW(platformids, nplatforms);
 
-		err := CL.clGetPlatformIDs( nplatforms, S.ADR(platformids[0]), 0 );
+		err := CL.clGetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
 		KernelLog.String("clGetPlatformIDs : "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) THEN
 			KernelLog.String('Error: Cannot get platforms!'); KernelLog.Ln;
@@ -105,7 +106,7 @@ TYPE
 
 		(*  Devices  *)
 
-		 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , S.ADR(ndevices));
+		 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
 	      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
 		        KernelLog.String("clGetDeviceIDs Error: "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 	          KernelLog.String('Error: Cannot get number of GPU devices!'); KernelLog.Ln;
@@ -113,7 +114,7 @@ TYPE
 	       END;
 
 		NEW(deviceids, ndevices);
-		err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, S.ADR(deviceids[0]), 0);
+		err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
 		KernelLog.String("clGetDeviceIDs : "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) THEN
 			KernelLog.String('Error: Cannot get devices!'); KernelLog.Ln;
@@ -123,20 +124,20 @@ TYPE
 
 
 
-			context := CL.clCreateContext(0, 1, S.ADR(deviceid), 0 , 0, err);
+			context := CL.clCreateContext(0, 1, ADDRESSOF(deviceid), 0 , 0, err);
 			commands := CL.clCreateCommandQueue(context, deviceid, 0, err);
 
-			kernelsource := Utils.LoadProgramSource("Mandelbrot.cl", "");
-			prog := CL.clCreateProgramWithSource(context, 1, S.ADR(kernelsource), 0, err);
+			kernelsource := Utils.LoadProgramSource("opencloberon/Mandelbrot.cl", "");
+			prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(kernelsource), 0, err);
 
-		(*	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), S.ADR(buf), bufwritten);
+		(*	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
 			KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln;
 			KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln;
 
 		*)
 			err := CL.clBuildProgram(prog, 0, 0, "", 0, 0);
 
-(*			err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), S.ADR(buf[0]), bufwritten);
+(*			err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
 			KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln;
 			KernelLog.String("buf= "); KernelLog.String(buf); KernelLog.Ln;
 *)
@@ -147,24 +148,16 @@ TYPE
 
 			Top := -2.0; Left := 2.0; Right := -2.0; Bottom:=2.0; Stride := WindowWidth;
 
-			err := CL.clSetKernelArg(kernel, 0, S.SIZEOF(REAL), S.ADR(Left));
-			err := CL.clSetKernelArg(kernel, 1, S.SIZEOF(REAL), S.ADR(Top));
-			err := CL.clSetKernelArg(kernel, 2, S.SIZEOF(REAL), S.ADR(Right));
-			err := CL.clSetKernelArg(kernel, 3, S.SIZEOF(REAL), S.ADR(Bottom));
-			err := CL.clSetKernelArg(kernel, 4, S.SIZEOF(LONGINT), S.ADR(Stride));
-			err := CL.clSetKernelArg(kernel, 5, S.SIZEOF(CL.cl_mem), S.ADR(objmem));
+			err := CL.clSetKernelArg(kernel, 0, SIZEOF(REAL), ADDRESSOF(Left));
+			err := CL.clSetKernelArg(kernel, 1, SIZEOF(REAL), ADDRESSOF(Top));
+			err := CL.clSetKernelArg(kernel, 2, SIZEOF(REAL), ADDRESSOF(Right));
+			err := CL.clSetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(Bottom));
+			err := CL.clSetKernelArg(kernel, 4, SIZEOF(LONGINT), ADDRESSOF(Stride));
+			err := CL.clSetKernelArg(kernel, 5, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));
 			inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) & (err=0);
 			DrawIt;
 		END InitCL;
 
-	(*	PROCEDURE Handle(VAR m: WMMessages.Message);
-		BEGIN
-			IF (m.msgType = WMMessages.MsgExt) & (m.ext # NIL) & (m.ext IS KillerMsg) THEN
-				Close;
-			ELSE Handle^(m)
-			END
-		END Handle;
-*)
 		PROCEDURE Draw*(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
 		BEGIN
 			Draw^(canvas, w, h, 0)
@@ -192,7 +185,7 @@ TYPE
 		BEGIN
 			IF inited THEN
 				Kernel.SetTimer(timer,0);
-				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  S.ADR(global[0]), 0, 0, 0, 0);
+				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(global[0]), 0, 0, 0, 0);
 				err := CL.clFinish(commands);
 				err := CL.clEnqueueReadBuffer( commands, objmem, CL.CL_TRUE, 0,WindowWidth*WindowHeight*4  , mimage.adr, 0, 0, 0);
 
