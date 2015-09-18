@@ -44,12 +44,13 @@ TYPE
 
 		globalWorkSize  : IVector; (* globalWorkSize domain size for our calculation *)
 
-		kernelsource: CL.PChar;
+		kernelsource: Strings.String;
 
 		 inited: BOOLEAN;
 		 mousex1, mousey1: LONGINT;
 		 selecting: BOOLEAN;
-
+		adr: ADDRESS;
+		
 	PROCEDURE &New(w, h: LONGINT);
 	BEGIN
 		Init(w, h, FALSE);
@@ -67,6 +68,7 @@ TYPE
 		NEW(mimage);
 		Raster.Create(mimage, sizeX, sizeY, Raster.BGRA8888);
 		InitCL;
+		IncCount;
 	END New;
 
 	PROCEDURE InitCL*;
@@ -77,7 +79,7 @@ TYPE
 		NEW(globalWorkSize,2);
 		globalWorkSize[0] := sizeX; globalWorkSize[1] := sizeY;
 
-		err := CL.clGetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
+		err := CL.GetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
 		KernelLog.String("clGetPlatformIDs nplatforms: "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
 			KernelLog.String('Error: Cannot get # of platforms!'); KernelLog.Ln;
@@ -86,7 +88,7 @@ TYPE
 
 		NEW(platformids, nplatforms);
 
-		err := CL.clGetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
+		err := CL.GetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
 		KernelLog.String("clGetPlatformIDs : "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) THEN
 			KernelLog.String('Error: Cannot get platforms!'); KernelLog.Ln;
@@ -95,7 +97,7 @@ TYPE
 	    	platform := platformids[0];
 
 		(*  Devices  *)
-		 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
+		 err := CL.GetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
 	      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
 		        KernelLog.String("clGetDeviceIDs Error: "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 	          KernelLog.String('Error: Cannot get number of GPU devices!'); KernelLog.Ln;
@@ -103,7 +105,7 @@ TYPE
 	       END;
 
 		NEW(deviceids, ndevices);
-		err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
+		err := CL.GetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
 		KernelLog.String("clGetDeviceIDs : "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) THEN
 			KernelLog.String('Error: Cannot get devices!'); KernelLog.Ln;
@@ -111,39 +113,43 @@ TYPE
 		END;
 		deviceid := deviceids[0];
 
-		context := CL.clCreateContext(0, 1, ADDRESSOF(deviceid), 0 , 0, err);
-		commands := CL.clCreateCommandQueue(context, deviceid, 0, err);
+		context := CL.CreateContext(0, 1, ADDRESSOF(deviceid), NIL , NIL, err);
+		commands := CL.CreateCommandQueue(context, deviceid, 0, err);
 
 		kernelsource := Utils.LoadProgramSource("opencloberon/SimpleMandelbrot.cl", "");
-		prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(kernelsource), 0, err);
+		IF kernelsource = NIL THEN
+			RETURN 
+		END;
+		adr := ADDRESSOF(kernelsource[0]);
+		prog := CL.CreateProgramWithSource(context, 1, ADDRESSOF(adr), 0, err);
 
-(*		err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
+(*		err := CL.GetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
 		KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln;
 		KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln;
 *)
 
-		err := CL.clBuildProgram(prog, 0, 0, "-cl-mad-enable", 0, 0);
+		err := CL.BuildProgram(prog, 0, 0, "-cl-mad-enable", 0, 0);
 		KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF err # CL.SUCCESS THEN
-			err := CL.clGetProgramBuildInfo(prog, deviceid, CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
+			err := CL.GetProgramBuildInfo(prog, deviceid, CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
 			KernelLog.String("Build Log : "); KernelLog.Ln;
 			KernelLog.String(buf); KernelLog.Ln;
 		END;
 
-(*		err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_OPTIONS, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
+(*		err := CL.GetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_OPTIONS, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
 		KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln;
 		KernelLog.String("buf= "); KernelLog.String(buf); KernelLog.Ln;
 *)
 
-		kernel := CL.clCreateKernel(prog, "computeMandelbrot", err);
+		kernel := CL.CreateKernel(prog, "computeMandelbrot", err);
 
-		pixelmem := CL.clCreateBuffer(context,  CL.MEM_WRITE_ONLY, sizeX*sizeY*4 , 0, err);
+		pixelmem := CL.CreateBuffer(context,  CL.MEM_WRITE_ONLY, sizeX*sizeY*4 , 0, err);
 
 		(* Create and fill the memory object containing the color map *)
 		InitColorMap(256);
 		colormapLength := LEN(colorMap,0);
-		colorMapMem := CL.clCreateBuffer(context, CL.MEM_READ_WRITE, colormapLength*SIZEOF(CL.cl_uint), 0, err);
-		err:= CL.clEnqueueWriteBuffer(commands, colorMapMem, CL.CL_TRUE, 0, colormapLength * SIZEOF(CL.cl_uint), ADDRESSOF(colorMap[0]), 0, 0, 0);
+		colorMapMem := CL.CreateBuffer(context, CL.MEM_READ_WRITE, colormapLength*SIZEOF(CL.cl_uint), 0, err);
+		err:= CL.EnqueueWriteBuffer(commands, colorMapMem, CL.CL_TRUE, 0, colormapLength * SIZEOF(CL.cl_uint), ADDRESSOF(colorMap[0]), 0, 0, 0);
 
 		maxIterations := 1250;
 		x0 := -2.0; y0 := -1.3; x1 := 0.6; y1:= 1.3;
@@ -179,15 +185,15 @@ TYPE
 	BEGIN
 		(* Free resources *)
 		IF inited THEN
-			err := CL.clReleaseMemObject(pixelmem);
-			err := CL.clReleaseMemObject(colorMapMem);
-			err := CL.clReleaseCommandQueue(commands);
-			err := CL.clReleaseContext(context);
-			err := CL.clReleaseKernel(kernel);
-			err := CL.clReleaseProgram(prog);
+			err := CL.ReleaseMemObject(pixelmem);
+			err := CL.ReleaseMemObject(colorMapMem);
+			err := CL.ReleaseCommandQueue(commands);
+			err := CL.ReleaseContext(context);
+			err := CL.ReleaseKernel(kernel);
+			err := CL.ReleaseProgram(prog);
 		END;
 		Close^;
-		window := NIL;
+		DecCount;
 	END Close;
 
 	PROCEDURE PointerMove(x,y : LONGINT; keys : SET);
@@ -252,20 +258,20 @@ TYPE
 	BEGIN
 		IF inited THEN
 			Kernel.SetTimer(timer,0);
-			err := CL.clSetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(pixelmem));
-			err := CL.clSetKernelArg(kernel, 1, SIZEOF(LONGINT), ADDRESSOF(sizeX));
-			err := CL.clSetKernelArg(kernel, 2, SIZEOF(LONGINT), ADDRESSOF(sizeY));
-			err := CL.clSetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(x0));
-			err := CL.clSetKernelArg(kernel, 4, SIZEOF(REAL), ADDRESSOF(y0));
-			err := CL.clSetKernelArg(kernel, 5, SIZEOF(REAL), ADDRESSOF(x1));
-			err := CL.clSetKernelArg(kernel, 6, SIZEOF(REAL), ADDRESSOF(y1));
-			err := CL.clSetKernelArg(kernel, 7, SIZEOF(LONGINT), ADDRESSOF(maxIterations));
-			err := CL.clSetKernelArg(kernel, 8, SIZEOF(CL.cl_mem), ADDRESSOF(colorMapMem));
-			err := CL.clSetKernelArg(kernel, 9, SIZEOF(LONGINT), ADDRESSOF(colormapLength));
+			err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(pixelmem));
+			err := CL.SetKernelArg(kernel, 1, SIZEOF(LONGINT), ADDRESSOF(sizeX));
+			err := CL.SetKernelArg(kernel, 2, SIZEOF(LONGINT), ADDRESSOF(sizeY));
+			err := CL.SetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(x0));
+			err := CL.SetKernelArg(kernel, 4, SIZEOF(REAL), ADDRESSOF(y0));
+			err := CL.SetKernelArg(kernel, 5, SIZEOF(REAL), ADDRESSOF(x1));
+			err := CL.SetKernelArg(kernel, 6, SIZEOF(REAL), ADDRESSOF(y1));
+			err := CL.SetKernelArg(kernel, 7, SIZEOF(LONGINT), ADDRESSOF(maxIterations));
+			err := CL.SetKernelArg(kernel, 8, SIZEOF(CL.cl_mem), ADDRESSOF(colorMapMem));
+			err := CL.SetKernelArg(kernel, 9, SIZEOF(LONGINT), ADDRESSOF(colormapLength));
 
-			err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(globalWorkSize[0]), 0, 0, 0, 0);
-			err := CL.clFinish(commands);
-			err := CL.clEnqueueReadBuffer( commands, pixelmem, CL.CL_TRUE, 0,sizeX*sizeY*4  , mimage.adr, 0, 0, 0);
+			err := CL.EnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(globalWorkSize[0]), 0, 0, 0, 0);
+			err := CL.Finish(commands);
+			err := CL.EnqueueReadBuffer( commands, pixelmem, CL.CL_TRUE, 0,sizeX*sizeY*4  , mimage.adr, 0, 0, 0);
 
 			elapsed := Kernel.Elapsed(timer);
 			str1:= "SimpleMandelbrotCL:  ";
@@ -283,25 +289,37 @@ TYPE
 	END MBWindow;
 
 VAR
-	window : MBWindow;
+	nofWindows : LONGINT;
 
 PROCEDURE Open*;
+VAR
+	window : MBWindow;
 BEGIN
-	IF window = NIL THEN
-		NEW(window,WindowWidth,WindowHeight);
-	 END;
+	NEW(window,WindowWidth,WindowHeight);
 END Open;
 
 
-PROCEDURE Cleanup;
+PROCEDURE IncCount;
+BEGIN {EXCLUSIVE}
+	INC(nofWindows)
+END IncCount;
+
+PROCEDURE DecCount;
+BEGIN {EXCLUSIVE}
+	DEC(nofWindows)
+END DecCount;
+
+PROCEDURE Cleanup*;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WM.WindowManager;
 BEGIN {EXCLUSIVE}
-	NEW(die); msg.ext := die; msg.msgType := WMMessages.MsgExt;
+	NEW(die);
+	msg.ext := die;
+	msg.msgType := WMMessages.MsgExt;
 	m := WM.GetDefaultManager();
 	m.Broadcast(msg);
-	AWAIT(window = NIL);
+	AWAIT(nofWindows = 0)
 END Cleanup;
 
 BEGIN

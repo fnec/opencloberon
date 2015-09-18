@@ -3,7 +3,7 @@ MODULE OpenCLBuild; (** AUTHOR "fnecati"; PURPOSE "opencl program syntax checker
 IMPORT Modules, Strings, WMComponents, WMMessages, WMRestorable, WMEditors, Commands,
 	WM:=WMWindowManager, WMGraphics, WMStandardComponents, WMDocumentEditor,
 	UndoManager, KernelLog, XML, WMTrees, Streams,
-	CL := OpenCL, Utils:=OpenCLUtils, S:=SYSTEM;
+	CL := OpenCL, Utils:=OpenCLUtils; 
 
 (*
    typical todo's:
@@ -52,7 +52,8 @@ TYPE
  		platformviewtree: WMTrees.TreeView;
 		platformtree: WMTrees.Tree;
 		rootnode, treenode: WMTrees.TreeNode;
-
+		devroot, devtreenode, childnode: WMTrees.TreeNode;
+		
 	PROCEDURE CreateForm(): WMComponents.VisualComponent;
 	VAR
 			label : WMStandardComponents.Label;
@@ -60,6 +61,8 @@ TYPE
 			toolbar, statusbar: WMStandardComponents.Panel;
 			vsizer, hsizer : WMStandardComponents.Resizer;
 			grpanel, grplatform: WMStandardComponents.GroupPanel; (* groupbox panel *)
+			i, k: LONGINT;
+			str: ARRAY 256 OF CHAR;
 	BEGIN
 		(*  Main Panel holding the tabs, toolbar and contents  *)
 
@@ -69,15 +72,15 @@ TYPE
 
 		(* left platform panel *)
 		NEW(lpanel);
-		lpanel.bounds.SetWidth(100);
+		lpanel.bounds.SetWidth(150);
 		lpanel.alignment.Set(WMComponents.AlignLeft); lpanel.fillColor.Set(0DDDDDDDDH);
 		lpanel.takesFocus.Set(TRUE);
 		panel.AddContent(lpanel);
 
 		(* platform group panel *)
 		NEW(grplatform);
-		grplatform.alignment.Set(WMComponents.AlignTop);
-		grplatform.bounds.SetHeight(200);
+		grplatform.alignment.Set(WMComponents.AlignClient);
+		(*grplatform.bounds.SetHeight(200);*)
 		(*grplatform.fillColor.Set(0FFCCAAFFH); *)grplatform.caption.SetAOC("Platform Info:");
 		lpanel.AddContent(grplatform);
 			(* ------ *)
@@ -90,15 +93,77 @@ TYPE
 				NEW(rootnode);
 				platformtree.SetNodeCaption(rootnode, Strings.NewString("PLATFORMS"));
 				platformtree.SetRoot(rootnode);
+				
+				FOR i:=0 TO Utils.NumberOfPlatforms-1 DO
+					NEW(treenode);
+					str := "Name: "; Strings.Append(str, Utils.platforms[i].name);
+					platformtree.SetNodeCaption(treenode, Strings.NewString(str));
+					platformtree.AddChildNode(rootnode, treenode);
+						NEW(childnode);
+						str := "Vendor: "; Strings.Append(str, Utils.platforms[i].vendor);
+						platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+						platformtree.AddChildNode(treenode, childnode);
+						NEW(childnode);
+						str := "Profile: "; Strings.Append(str, Utils.platforms[i].profile);
+						platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+						platformtree.AddChildNode(treenode, childnode);
+						NEW(childnode);
+						str := "Version: "; Strings.Append(str, Utils.platforms[i].version);
+						platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+						platformtree.AddChildNode(treenode, childnode);
+						NEW(childnode);
+						str := "Extensions: "; Strings.Append(str, Utils.platforms[i].extensions);
+						platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+						platformtree.AddChildNode(treenode, childnode);
+						
+							(* devices *)
+							NEW(devroot);
+							platformtree.SetNodeCaption(devroot, Strings.NewString("DEVICES"));
+							platformtree.AddChildNode(treenode, devroot);
+							
+							FOR k := 0 TO Utils.platforms[i].numOfDevices-1 DO
+								
+								Strings.IntToStr(k, str); Strings.Append(str, ". Device");
+								NEW(devtreenode);
+								platformtree.SetNodeCaption(devtreenode, Strings.NewString(str));
+								platformtree.AddChildNode(devroot, devtreenode);	
+								
+							
+								NEW(childnode);
+								str := "Name: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].name);
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);	
+								NEW(childnode);
+								str := "Vendor: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].vendor);
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
 
-				NEW(treenode);
-				platformtree.SetNodeCaption(treenode, Strings.NewString("AMD"));
-				platformtree.AddChildNode(rootnode, treenode);
+								NEW(childnode);
+								str := "Driver Version: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].driverVersion);
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
+								NEW(childnode);
+								str := "Device Version: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].deviceVersion);
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
+								NEW(childnode);
+								str := "OpenCL Version: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].openclVersion);
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
+								NEW(childnode);
+								str := "Device Type: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].typestr);
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
 
+
+							END;
+				END;
+
+(*
 				NEW(treenode);
 				platformtree.SetNodeCaption(treenode, Strings.NewString("NVIDA"));
 				platformtree.AddChildNode(rootnode, treenode);
-
+*)
 			platformtree.Release();
 
 		NEW(hsizer); hsizer.alignment.Set(WMComponents.AlignRight); hsizer.bounds.SetWidth(4);
@@ -254,35 +319,35 @@ TYPE
 	VAR
 	      options: ARRAY 256 OF CHAR;
 	      err: LONGINT;
-	      pbuf: CL.PChar;
+	      pbuf: ADDRESS;
      		prog      : CL.cl_program;       (* compute program *)
      		status: CL.cl_build_status;
      		binarysize: CL.size_t;
 	BEGIN
 	IF clinited THEN
-	 		cleditor.editor.GetAsString(buf);
+	 		cleditor.editor.GetAsString(buf^);
 	 		optionscleditor.GetAsString(options);
 
-	 		pbuf := S.VAL(CL.PChar, ADDRESSOF(buf[0]));
-			prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(pbuf), 0, err);
+	 		pbuf := ADDRESSOF(buf^[0]); (*  in c, this is **buf  *)
+			prog := CL.CreateProgramWithSource(context, 1, ADDRESSOF(pbuf), 0, err);
 			IF prog # 0 THEN
 
-				err := CL.clBuildProgram(prog, 0, 0, options, 0, 0);
+				err := CL.BuildProgram(prog, 0, 0, options, 0, 0);
 				KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 
 				IF err  # CL.SUCCESS THEN
 						KernelLog.String("Build Status = "); KernelLog.Int(status, 0); KernelLog.Ln;
-						err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(log), ADDRESSOF(log[0]), 0);
+						err := CL.GetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(log), ADDRESSOF(log[0]), 0);
 						logcleditor.SetAsString(log);
 				ELSE
-					err := CL.clGetProgramInfo(prog, CL.PROGRAM_BINARY_SIZES, SIZEOF(CL.size_t), ADDRESSOF(binarysize), 0);
+					err := CL.GetProgramInfo(prog, CL.PROGRAM_BINARY_SIZES, SIZEOF(CL.size_t), ADDRESSOF(binarysize), 0);
 					IF err = CL.SUCCESS THEN
 					  KernelLog.String("Program Binary Size= "); KernelLog.Int(binarysize, 0);  KernelLog.String(" bytes."); KernelLog.Ln;
 					END;
 					logcleditor.SetAsString("SUCCESS");
 				END;
 			END;
-			err := CL.clReleaseProgram(prog);
+			err := CL.ReleaseProgram(prog);
 	 END;
 	END CLBuild;
 
@@ -321,31 +386,31 @@ VAR
 	commands : CL.cl_command_queue;
 
 	clinited: BOOLEAN;
-	buf: ARRAY 32768 OF CHAR; (* if kernel size is not enough increase size  *)
+	buf: Strings.String; (* 16Kb, if kernel size is not enough increase size, look at the module body  *)
 	log: ARRAY 1024 OF CHAR;
 
 PROCEDURE InitCL;
 VAR err, err1, err2, err3: LONGINT;
 BEGIN
 	clinited := FALSE;
-	err := CL.clGetPlatformIDs( 1, ADDRESSOF(platformids), 0 );
+	err := CL.GetPlatformIDs( 1, ADDRESSOF(platformids), 0 );
 	IF err # CL.SUCCESS THEN
 		KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		RETURN
 	END;
-	err1 := CL.clGetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, ADDRESSOF(deviceids), 0);
+	err1 := CL.GetDeviceIDs(platformids, CL.DEVICE_TYPE_ALL, 1, ADDRESSOF(deviceids), 0);
 	IF err1 # CL.SUCCESS THEN
 		KernelLog.String(Utils.GetError(err1)); KernelLog.Ln;
 		RETURN
 	END;
 
-	context := CL.clCreateContext(0, 1, ADDRESSOF(deviceids), 0 , 0, err2);
+	context := CL.CreateContext(0, 1, ADDRESSOF(deviceids), NIL , NIL, err2);
 	IF err2# CL.SUCCESS THEN
 		KernelLog.String(Utils.GetError(err2)); KernelLog.Ln;
 		RETURN
 	END;
 
-	commands := CL.clCreateCommandQueue(context, deviceids, 0, err3);
+	commands := CL.CreateCommandQueue(context, deviceids, 0, err3);
 		IF err3 # CL.SUCCESS THEN
 		KernelLog.String(Utils.GetError(err3)); KernelLog.Ln;
 		RETURN
@@ -399,8 +464,8 @@ BEGIN {EXCLUSIVE}
 	AWAIT(nofWindows = 0);
 
 	IF clinited THEN
-		err := CL.clReleaseCommandQueue(commands);
-		err := CL.clReleaseContext(context);
+		err := CL.ReleaseCommandQueue(commands);
+		err := CL.ReleaseContext(context);
 	END;
 
 END Cleanup;
@@ -416,9 +481,12 @@ BEGIN {EXCLUSIVE}
 END DecCount;
 
 BEGIN
+	NEW(buf, 16384); (* buffer for reading texts *)
 	Modules.InstallTermHandler(Cleanup);
 	InitCL;
 END OpenCLBuild.
+
+OpenCLBuild.Open ~ 
 
 SystemTools.Free OpenCLBuild ~
 

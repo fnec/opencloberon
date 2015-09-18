@@ -26,6 +26,39 @@ TYPE
 		mode: Raster.Mode;
 		alive, animated: BOOLEAN;
 
+		rand: Random.Generator;
+
+		platformids  : POINTER TO ARRAY OF CL.cl_platform_id;
+		platform: CL.cl_platform_id;
+		nplatforms: LONGINT;
+
+		deviceids : POINTER TO ARRAY OF CL.cl_device_id;
+		deviceid : CL.cl_device_id;
+		ndevices: LONGINT;
+
+		context : CL.cl_context;
+		commands : CL.cl_command_queue;
+		prog      : CL.cl_program;       (* compute program *)
+		kernel    : CL.cl_kernel;         (* compute kernel *)
+
+		objmem   : CL.cl_mem;  (* device memory used for the input array *)
+		global, local  : IVector; (* global domain size for our calculation *)
+		kernelsource: Strings.String;
+
+		muA, muB, muC, colA, colB, colC: RVector;
+		muT, colT: REAL;
+
+		epsilon: REAL;
+		inited : BOOLEAN;
+
+		MaxWorkGroupSize: CL.size_t;
+		WorkGroupItems : LONGINT;
+		WorkGroupSize: IVector;
+		sizeX, sizeY: LONGINT;
+
+		kernelEvent, readEvent: CL.cl_event; (* for event profiling *)
+		endupdate: BOOLEAN;
+	
 		PROCEDURE &New;
 		BEGIN
 			Init(WindowWidth, WindowHeight, FALSE);
@@ -35,13 +68,154 @@ TYPE
 			SetTitle(Strings.NewString("JuliaSetCL: "));
 			SetIcon(WMGraphics.LoadImage("WMIcons.tar://TuringCoatWnd.png", TRUE));
 
+			NEW(rand);
+			rand.InitSeed(Kernel.GetTicks());
+	
+			InitCL;
 		(* since bpp of linuxAos WM is 16bpp, an image buffer is used. For 32bpp,  windows.img can be used directly *)
 			NEW(mimage);
 			Raster.Create(mimage, WindowWidth, WindowHeight, Raster.BGRA8888);
 			Raster.InitMode(mode, Raster.srcCopy);
 			UpdateImage;
+			alive := TRUE;
 			animated := FALSE;
+			IncCount;
 		END New;
+
+		PROCEDURE InitCL;
+		VAR err: LONGINT;
+			bufwritten: LONGINT;
+			 buf: ARRAY 1024 OF CHAR;
+			 adr: ADDRESS;
+		BEGIN
+			epsilon := 0.001;
+			WorkGroupItems := 32;
+			NEW(WorkGroupSize, 2);
+			muT := 0.0;
+
+			muA := [-0.278, -0.479, 0.0, 0.0];
+			muB := [0.278, 0.479, 0.0, 0.0];
+			muC := [-0.278, -0.479, -0.231, 0.235];
+
+			colA := [0.25, 0.45, 1.0, 1.0];
+			colB := [0.25, 0.45, 1.0, 1.0];
+			colC := [0.25, 0.45, 1.0, 1.0];
+
+			NEW(global,2); NEW(local,2);
+
+			err := CL.GetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
+			out.String("clGetPlatformIDs nplatforms: "); out.String(Utils.GetError(err)); out.Ln;
+			IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
+				out.String('Error: Cannot get # of platforms!'); out.Ln; out.Update;
+				RETURN
+			END;
+
+			NEW(platformids, nplatforms);
+
+			err := CL.GetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
+			out.String("clGetPlatformIDs : "); out.String(Utils.GetError(err)); out.Ln;
+			IF (err # CL.SUCCESS) THEN
+				out.String('Error: Cannot get platforms!'); out.Ln; out.Update;
+				RETURN
+			END;
+
+		    	platform := platformids[0];
+
+			(*  Devices  *)
+
+			 err := CL.GetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
+		      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
+			        out.String("clGetDeviceIDs Error: "); out.String(Utils.GetError(err)); out.Ln;
+		          out.String('Error: Cannot get number of GPU devices!'); out.Ln; out.Update;
+		          RETURN
+		       END;
+
+			NEW(deviceids, ndevices);
+			err := CL.GetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
+			out.String("clGetDeviceIDs : "); out.String(Utils.GetError(err)); out.Ln;
+			IF (err # CL.SUCCESS) THEN
+				out.String('Error: Cannot get devices!'); out.Ln; out.Update;
+				RETURN
+			END;
+			deviceid := deviceids[0];
+
+
+			context := CL.CreateContext(0, 1, ADDRESSOF(deviceid), NIL , NIL, err);
+			out.String("clCreateContext: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+
+			(* with event profile *)
+
+			commands := CL.CreateCommandQueue(context, deviceid, CL.QUEUE_PROFILING_ENABLE + CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, err);
+			out.String("clCreateCommandQueue: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+			
+			kernelsource := Utils.LoadProgramSource("opencloberon/qjulia_kernel.cl", "");
+			adr := ADDRESSOF(kernelsource^[0]);
+			prog := CL.CreateProgramWithSource(context, 1, ADDRESSOF(adr), 0, err);
+			out.String("clCreateProgramWithSource: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+
+
+		(*	err := CL.GetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
+			out.String("bufwritten= "); out.Int(bufwritten, 0); out.Ln;
+			out.String("clGetProgramInfoSource= "); out.String(buf); out.Ln;
+
+		*)
+			err := CL.BuildProgram(prog, 0, 0, "", 0, 0);
+			out.String("clBuildProgram: ");  out.String(Utils.GetError(err));out.Ln; out.Update;
+		(*
+			err := CL.GetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
+			out.String("bufwritten= "); out.Int(bufwritten, 0); out.Ln;
+			out.String("buf= "); out.String(buf); out.Ln;
+		*)
+
+
+			err := CL.CreateKernelsInProgram(prog, 0,0, ADDRESSOF(bufwritten));
+			out.String("clCreateKernelsInProgram: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+
+			out.String(" number of kernels in the program = "); out.Int(bufwritten, 0); out.Ln; out.Update;
+			err := CL.CreateKernelsInProgram(prog, bufwritten, ADDRESSOF(kernel), 0);
+
+			(*kernel := CL.CreateKernel(prog, "QJuliaKernel", err); *)
+
+			err := CL.GetKernelInfo(kernel, CL.KERNEL_FUNCTION_NAME, LEN(buf), ADDRESSOF(buf[0]),0);
+			out.String("Kernelname :"); out.String(buf); out.Ln; out.Update;
+
+			err := CL.GetKernelWorkGroupInfo(kernel, deviceid, CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(MaxWorkGroupSize), 0);
+			out.String("MaxWorkGroupSize= "); out.Int(MaxWorkGroupSize, 0); out.Ln; out.Update;
+
+			IF MaxWorkGroupSize>1 THEN
+				 WorkGroupSize[0] := MaxWorkGroupSize DIV WorkGroupItems
+			ELSE
+				 WorkGroupSize[0] := MaxWorkGroupSize;
+			END;
+			 WorkGroupSize[1] := MaxWorkGroupSize DIV WorkGroupSize[0] ;
+
+			 sizeX :=  WorkGroupSize[0] ;
+			 sizeY :=  WorkGroupSize[1] ;
+
+			global[0] := Utils.RoundUp(WindowWidth, sizeX)*sizeX;
+			global[1] :=  Utils.RoundUp(WindowHeight, sizeY)*sizeY;
+
+			local[0] := sizeX; local[1] :=sizeY;
+
+			objmem := CL.CreateBuffer(context,  CL.MEM_WRITE_ONLY, WindowWidth*WindowHeight*4 , 0, err);
+			out.String("clCreateBuffer: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+
+			err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));
+			out.String("clSetKernelArg-0: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+
+			err := CL.SetKernelArg(kernel, 1, SIZEOF(REAL)*LEN(muC,0), ADDRESSOF(muC[0]));
+			out.String("clSetKernelArg-1: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+
+			err := CL.SetKernelArg(kernel, 2, SIZEOF(REAL)*LEN(colC,0), ADDRESSOF(colC[0]));
+			out.String("clSetKernelArg-2: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+
+			err := CL.SetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
+			out.String("clSetKernelArg-3: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
+
+			inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) & (err=0);
+
+		END InitCL;
+
 
 		PROCEDURE KeyEvent* (ucs: LONGINT; flags: SET; keysym: LONGINT);
 		CONST
@@ -59,8 +233,8 @@ TYPE
 			| "d" :  muC[2] := muC[2] - stepSize;
 			| "e" : muC[3] := muC[3] + stepSize;
 			| "c" :  muC[3] := muC[3] - stepSize;
-			| "A" : animated := ~animated;
-			| "Q" : Close;
+			| "A" : BEGIN {EXCLUSIVE} animated := ~animated; END;
+			| "Q" : Close; RETURN;
 			| "S": SaveImage;
 			ELSE
 
@@ -84,11 +258,80 @@ TYPE
 		END Draw;
 
 		PROCEDURE Close*;
+		VAR err: LONGINT;
 		BEGIN
-			alive := FALSE;
+			BEGIN{EXCLUSIVE} alive := FALSE; animated := FALSE; AWAIT(endupdate) END;
+			(* Free resources *)
+			IF inited THEN
+				err := CL.ReleaseEvent(kernelEvent);
+				err := CL.ReleaseEvent(readEvent);
+				err := CL.ReleaseMemObject(objmem);
+				err := CL.ReleaseKernel(kernel);
+				err := CL.ReleaseProgram(prog);
+				err := CL.ReleaseCommandQueue(commands);
+				err := CL.ReleaseContext(context);
+			END;			
 			Close^;
-			window := NIL;
+			DecCount;
 		END Close;
+
+		PROCEDURE UpdateMu( VAR t: REAL; VAR a, b: RVector );
+		BEGIN
+		    t := t + 0.01;
+		    IF t >= 1.0 THEN
+		       t := 0.0;
+		        a[ 0 ] := b[ 0 ];
+		        a[ 1 ] := b[ 1 ];
+		        a[ 2 ] := b[ 2 ];
+		        a[ 3 ] := b[ 3 ];
+
+		        b[ 0 ] := 2.0 * rand.Uniform()- 1.0;
+		        b[ 1 ] := 2.0 * rand.Uniform()  - 1.0;
+		        b[ 2 ] := 2.0 * rand.Uniform() - 1.0;
+		        b[ 3 ] := 2.0 * rand.Uniform() - 1.0;
+		    END;
+		END UpdateMu;
+
+		PROCEDURE RandomColor( VAR v: RVector );
+		BEGIN
+		    v[ 0 ] := 2.0 * rand.Uniform() - 1.0;
+		    v[ 1 ] := 2.0 * rand.Uniform() - 1.0;
+		    v[ 2 ] := 2.0 * rand.Uniform()- 1.0;
+		    v[ 3 ] := 1.0;
+		END  RandomColor;
+
+		PROCEDURE UpdateColor( VAR t: REAL; VAR a, b: RVector );
+		BEGIN
+		    t := t + 0.01;
+		    IF  t >= 1.0 THEN
+		        t := 0.0;
+		        a[ 0 ] := b[ 0 ];
+		        a[ 1 ] := b[ 1 ];
+		        a[ 2 ] := b[ 2 ];
+		        a[ 3 ] := b[ 3 ];
+		        RandomColor(b);
+		    END;
+		END UpdateColor;
+
+		PROCEDURE Interpolate( VAR m: RVector; t: REAL; a, b: RVector );
+		VAR i: LONGINT;
+		BEGIN
+		    FOR i:=0 TO 3 DO
+		        m[ i ] := ( 1.0 - t ) * a[ i ] + t * b[ i ];
+		    END;
+		END Interpolate;
+
+		PROCEDURE ExecutionTime(e: CL.cl_event): LONGREAL;
+		VAR sec: LONGREAL;
+			 err: LONGINT;
+			 endtime, starttime: HUGEINT;
+		BEGIN
+			err := CL.GetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, SIZEOF(HUGEINT), ADDRESSOF(endtime),0);
+			err := CL.GetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, SIZEOF(HUGEINT), ADDRESSOF(starttime), 0);
+
+			sec := 1.0D-6*(endtime-starttime); (* ns->ms *)
+			RETURN sec;
+		END ExecutionTime;
 
 		PROCEDURE UpdateImage;
 		VAR err: LONGINT;
@@ -96,7 +339,7 @@ TYPE
 			relapsed: LONGREAL;
 
 		BEGIN
-
+			BEGIN {EXCLUSIVE} endupdate := FALSE; END;
 			IF inited THEN
 				(* Kernel.SetTimer(timer,0);*)
 			IF animated THEN
@@ -106,17 +349,17 @@ TYPE
 				Interpolate(colC, colT, colA, colB );
 			END;
 
-			(* err := CL.clSetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));*)
-			err := CL.clSetKernelArg(kernel, 1, SIZEOF(REAL)*LEN(muC,0), ADDRESSOF(muC[0]));
-			err := CL.clSetKernelArg(kernel, 2, SIZEOF(REAL)*LEN(colC,0), ADDRESSOF(colC[0]));
-			err := CL.clSetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
+			(* err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));*)
+			err := CL.SetKernelArg(kernel, 1, SIZEOF(REAL)*LEN(muC,0), ADDRESSOF(muC[0]));
+			err := CL.SetKernelArg(kernel, 2, SIZEOF(REAL)*LEN(colC,0), ADDRESSOF(colC[0]));
+			err := CL.SetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
 
-				err := CL.clEnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(global[0]), ADDRESSOF(local[0]), 0, 0, ADDRESSOF(kernelEvent));
-				err := CL.clWaitForEvents(1, ADDRESSOF(kernelEvent));
+				err := CL.EnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(global[0]), ADDRESSOF(local[0]), 0, 0, ADDRESSOF(kernelEvent));
+				err := CL.WaitForEvents(1, ADDRESSOF(kernelEvent));
 
-(*				err := CL.clFinish(commands);*)
-				err := CL.clEnqueueReadBuffer( commands, objmem, CL.CL_TRUE, 0,WindowWidth*WindowHeight*4  , mimage.adr, 0, 0, ADDRESSOF(readEvent));
-				err := CL.clWaitForEvents(1, ADDRESSOF(readEvent));
+(*				err := CL.Finish(commands);*)
+				err := CL.EnqueueReadBuffer( commands, objmem, CL.CL_TRUE, 0,WindowWidth*WindowHeight*4  , mimage.adr, 0, 0, ADDRESSOF(readEvent));
+				err := CL.WaitForEvents(1, ADDRESSOF(readEvent));
 
 				(*  write timing info  *)
 				str1:= "JuliaSetCL:  ";
@@ -134,6 +377,7 @@ TYPE
 				Raster.Copy(mimage,img, 0,0,WindowWidth, WindowHeight, 0,0, mode);
 				Invalidate(WMRectangles.MakeRect(0, 0, GetWidth(), GetHeight()));
 			END;
+			BEGIN {EXCLUSIVE} endupdate := TRUE; END;
 		END UpdateImage;
 
 		PROCEDURE SaveImage;
@@ -147,283 +391,53 @@ TYPE
 		END SaveImage;
 
 	BEGIN  {ACTIVE}
-	alive := TRUE;
-	WHILE alive DO
-		IF animated THEN
-			UpdateImage;
+		WHILE alive DO
+			BEGIN{EXCLUSIVE} AWAIT(animated) END;
+				UpdateImage;
 		END
-	END;
-
 	END MBWindow;
 
 VAR
 	out: Streams.Writer;
-
-	window : MBWindow;
-	rand: Random.Generator;
-
-	platformids  : POINTER TO ARRAY OF CL.cl_platform_id;
-	platform: CL.cl_platform_id;
-	nplatforms: LONGINT;
-
-	deviceids : POINTER TO ARRAY OF CL.cl_device_id;
-	deviceid : CL.cl_device_id;
-	ndevices: LONGINT;
-
-	context : CL.cl_context;
-	commands : CL.cl_command_queue;
-	prog      : CL.cl_program;       (* compute program *)
-	kernel    : CL.cl_kernel;         (* compute kernel *)
-
-	objmem   : CL.cl_mem;  (* device memory used for the input array *)
-	global, local  : IVector; (* global domain size for our calculation *)
-	kernelsource: CL.PChar;
-
-	muA, muB, muC, colA, colB, colC: RVector;
-	muT, colT: REAL;
-
-	epsilon: REAL;
-	inited : BOOLEAN;
-
-	MaxWorkGroupSize: CL.size_t;
-	WorkGroupItems : LONGINT;
-	WorkGroupSize: IVector;
-	sizeX, sizeY: LONGINT;
-
-	kernelEvent, readEvent: CL.cl_event; (* for event profiling *)
-
-PROCEDURE InitCL;
-VAR err: LONGINT;
-	bufwritten: LONGINT;
-	 buf: ARRAY 1024 OF CHAR;
-BEGIN
-	epsilon := 0.001;
-	WorkGroupItems := 32;
-	NEW(WorkGroupSize, 2);
-	muT := 0.0;
-
-	muA := [-0.278, -0.479, 0.0, 0.0];
-	muB := [0.278, 0.479, 0.0, 0.0];
-	muC := [-0.278, -0.479, -0.231, 0.235];
-
-	colA := [0.25, 0.45, 1.0, 1.0];
-	colB := [0.25, 0.45, 1.0, 1.0];
-	colC := [0.25, 0.45, 1.0, 1.0];
-
-	NEW(global,2); NEW(local,2);
-
-	err := CL.clGetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
-	out.String("clGetPlatformIDs nplatforms: "); out.String(Utils.GetError(err)); out.Ln;
-	IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
-		out.String('Error: Cannot get # of platforms!'); out.Ln; out.Update;
-		RETURN
-	END;
-
-	NEW(platformids, nplatforms);
-
-	err := CL.clGetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
-	out.String("clGetPlatformIDs : "); out.String(Utils.GetError(err)); out.Ln;
-	IF (err # CL.SUCCESS) THEN
-		out.String('Error: Cannot get platforms!'); out.Ln; out.Update;
-		RETURN
-	END;
-
-    	platform := platformids[0];
-
-	(*  Devices  *)
-
-	 err := CL.clGetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
-      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
-	        out.String("clGetDeviceIDs Error: "); out.String(Utils.GetError(err)); out.Ln;
-          out.String('Error: Cannot get number of GPU devices!'); out.Ln; out.Update;
-          RETURN
-       END;
-
-	NEW(deviceids, ndevices);
-	err := CL.clGetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
-	out.String("clGetDeviceIDs : "); out.String(Utils.GetError(err)); out.Ln;
-	IF (err # CL.SUCCESS) THEN
-		out.String('Error: Cannot get devices!'); out.Ln; out.Update;
-		RETURN
-	END;
-	deviceid := deviceids[0];
-
-
-	context := CL.clCreateContext(0, 1, ADDRESSOF(deviceid), 0 , 0, err);
-	out.String("clCreateContext: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-	(* with event profile *)
-
-	commands := CL.clCreateCommandQueue(context, deviceid, CL.QUEUE_PROFILING_ENABLE + CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE, err);
-	out.String("clCreateCommandQueue: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-	kernelsource := Utils.LoadProgramSource("opencloberon/qjulia_kernel.cl", "");
-	prog := CL.clCreateProgramWithSource(context, 1, ADDRESSOF(kernelsource), 0, err);
-	out.String("clCreateProgramWithSource: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-
-(*	err := CL.clGetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
-	out.String("bufwritten= "); out.Int(bufwritten, 0); out.Ln;
-	out.String("clGetProgramInfoSource= "); out.String(buf); out.Ln;
-
-*)
-	err := CL.clBuildProgram(prog, 0, 0, "", 0, 0);
-	out.String("clBuildProgram: ");  out.String(Utils.GetError(err));out.Ln; out.Update;
-(*
-	err := CL.clGetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
-	out.String("bufwritten= "); out.Int(bufwritten, 0); out.Ln;
-	out.String("buf= "); out.String(buf); out.Ln;
-*)
-
-
-	err := CL.clCreateKernelsInProgram(prog, 0,0, ADDRESSOF(bufwritten));
-	out.String("clCreateKernelsInProgram: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-	out.String(" number of kernels in the program = "); out.Int(bufwritten, 0); out.Ln; out.Update;
-	err := CL.clCreateKernelsInProgram(prog, bufwritten, ADDRESSOF(kernel), 0);
-
-	(*kernel := CL.clCreateKernel(prog, "QJuliaKernel", err); *)
-
-	err := CL.clGetKernelInfo(kernel, CL.KERNEL_FUNCTION_NAME, LEN(buf), ADDRESSOF(buf[0]),0);
-	out.String("Kernelname :"); out.String(buf); out.Ln; out.Update;
-
-	err := CL.clGetKernelWorkGroupInfo(kernel, deviceid, CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(MaxWorkGroupSize), 0);
-	out.String("MaxWorkGroupSize= "); out.Int(MaxWorkGroupSize, 0); out.Ln; out.Update;
-
-	IF MaxWorkGroupSize>1 THEN
-		 WorkGroupSize[0] := MaxWorkGroupSize DIV WorkGroupItems
-	ELSE
-		 WorkGroupSize[0] := MaxWorkGroupSize;
-	END;
-	 WorkGroupSize[1] := MaxWorkGroupSize DIV WorkGroupSize[0] ;
-
-	 sizeX :=  WorkGroupSize[0] ;
-	 sizeY :=  WorkGroupSize[1] ;
-
-	global[0] := Utils.RoundUp(WindowWidth, sizeX)*sizeX;
-	global[1] :=  Utils.RoundUp(WindowHeight, sizeY)*sizeY;
-
-	local[0] := sizeX; local[1] :=sizeY;
-
-	objmem := CL.clCreateBuffer(context,  CL.MEM_WRITE_ONLY, WindowWidth*WindowHeight*4 , 0, err);
-	out.String("clCreateBuffer: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-	err := CL.clSetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));
-	out.String("clSetKernelArg-0: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-	err := CL.clSetKernelArg(kernel, 1, SIZEOF(REAL)*LEN(muC,0), ADDRESSOF(muC[0]));
-	out.String("clSetKernelArg-1: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-	err := CL.clSetKernelArg(kernel, 2, SIZEOF(REAL)*LEN(colC,0), ADDRESSOF(colC[0]));
-	out.String("clSetKernelArg-2: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-	err := CL.clSetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
-	out.String("clSetKernelArg-3: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
-
-	inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) & (err=0);
-
-END InitCL;
-
+	nofWindows: LONGINT;
+	
 PROCEDURE Open*;
+VAR window : MBWindow;
 BEGIN
-  IF window = NIL THEN
 	NEW(window);
- END;
 END Open;
 
-PROCEDURE UpdateMu( VAR t: REAL; VAR a, b: RVector );
-BEGIN
-    t := t + 0.01;
-    IF t >= 1.0 THEN
-       t := 0.0;
-        a[ 0 ] := b[ 0 ];
-        a[ 1 ] := b[ 1 ];
-        a[ 2 ] := b[ 2 ];
-        a[ 3 ] := b[ 3 ];
+PROCEDURE IncCount;
+BEGIN {EXCLUSIVE}
+	INC(nofWindows)
+END IncCount;
 
-        b[ 0 ] := 2.0 * rand.Uniform()- 1.0;
-        b[ 1 ] := 2.0 * rand.Uniform()  - 1.0;
-        b[ 2 ] := 2.0 * rand.Uniform() - 1.0;
-        b[ 3 ] := 2.0 * rand.Uniform() - 1.0;
-    END;
-END UpdateMu;
+PROCEDURE DecCount;
+BEGIN {EXCLUSIVE}
+	DEC(nofWindows)
+END DecCount;
 
-PROCEDURE RandomColor( VAR v: RVector );
-BEGIN
-    v[ 0 ] := 2.0 * rand.Uniform() - 1.0;
-    v[ 1 ] := 2.0 * rand.Uniform() - 1.0;
-    v[ 2 ] := 2.0 * rand.Uniform()- 1.0;
-    v[ 3 ] := 1.0;
-END  RandomColor;
-
-PROCEDURE UpdateColor( VAR t: REAL; VAR a, b: RVector );
-BEGIN
-    t := t + 0.01;
-    IF  t >= 1.0 THEN
-        t := 0.0;
-        a[ 0 ] := b[ 0 ];
-        a[ 1 ] := b[ 1 ];
-        a[ 2 ] := b[ 2 ];
-        a[ 3 ] := b[ 3 ];
-        RandomColor(b);
-    END;
-END UpdateColor;
-
-PROCEDURE Interpolate( VAR m: RVector; t: REAL; a, b: RVector );
-VAR i: LONGINT;
-BEGIN
-    FOR i:=0 TO 3 DO
-        m[ i ] := ( 1.0 - t ) * a[ i ] + t * b[ i ];
-    END;
-END Interpolate;
-
-PROCEDURE ExecutionTime(e: CL.cl_event): LONGREAL;
-VAR sec: LONGREAL;
-	 err: LONGINT;
-	 endtime, starttime: HUGEINT;
-BEGIN
-	err := CL.clGetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, SIZEOF(HUGEINT), ADDRESSOF(endtime),0);
-	err := CL.clGetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, SIZEOF(HUGEINT), ADDRESSOF(starttime), 0);
-
-	sec := 1.0D-6*(endtime-starttime); (* ns->ms *)
-	RETURN sec;
-END ExecutionTime;
-
-PROCEDURE Cleanup;
+PROCEDURE Cleanup*;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WM.WindowManager;
-	 err: LONGINT;
-
 BEGIN {EXCLUSIVE}
-	NEW(die); msg.ext := die; msg.msgType := WMMessages.MsgExt;
+	NEW(die);
+	msg.ext := die;
+	msg.msgType := WMMessages.MsgExt;
 	m := WM.GetDefaultManager();
 	m.Broadcast(msg);
-	AWAIT(window = NIL);
-	(* Free resources *)
-	IF inited THEN
-		err := CL.clReleaseEvent(kernelEvent);
-		err := CL.clReleaseEvent(readEvent);
-		err := CL.clReleaseMemObject(objmem);
-		err := CL.clReleaseKernel(kernel);
-		err := CL.clReleaseProgram(prog);
-		err := CL.clReleaseCommandQueue(commands);
-		err := CL.clReleaseContext(context);
-	END;
+	AWAIT(nofWindows = 0)
 END Cleanup;
 
 BEGIN
 	Modules.InstallTermHandler(Cleanup);
-	NEW(rand);
-	rand.InitSeed(Kernel.GetTicks());
 	Streams.OpenWriter(out, KernelLog.Send);
-
-	InitCL;
 END MyJuliasetCL.
 
 SystemTools.Free  MyJuliasetCL  ~
-SystemTools.FreeDownTo OpenCL ~
 
+SystemTools.FreeDownTo OpenCL ~
 
 MyJuliasetCL.Open ~
 

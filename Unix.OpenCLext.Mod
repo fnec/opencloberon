@@ -1,33 +1,6 @@
 MODULE OpenCLext; (** AUTHOR "fnecati"; PURPOSE "OpenCL binding for cl_ext.h, LinuxAos"; *)
 IMPORT SYSTEM, CL:=OpenCL, KernelLog;
 
-(*! cl_ext.h *)
-(*******************************************************************************
- * Copyright (c) 2008-2010 The Khronos Group Inc.
- *
- * Permission is hereby granted, free of charge, to any person obtaining a
- * copy of this software and/or associated documentation files (the
- * "Materials"), to deal in the Materials without restriction, including
- * without limitation the rights to use, copy, modify, merge, publish,
- * distribute, sublicense, and/or sell copies of the Materials, and to
- * permit persons to whom the Materials are furnished to do so, subject to
- * the following conditions:
- *
- * The above copyright notice and this permission notice shall be included
- * in all copies or substantial portions of the Materials.
- *
- * THE MATERIALS ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
- * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
- * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
- * IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
- * CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
- * TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
- * MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
- ******************************************************************************)
-
-
- (* EXTENSIONS,  ext.h *)
-
 (*  khr_fp64 extension - no extension #define since it has no functions  *)
 CONST
 	 DEVICE_DOUBLE_FP_CONFIG* =1032H;
@@ -53,19 +26,17 @@ CONST
  * before using.
  *)
 
- CONST
-  cl_APPLE_SetMemObjectDestructor* = 1;
-
 (* VERSION_1_0 *)
 TYPE
-  TclSetMemObjectDestructorAPPLE* = PROCEDURE {C}(
+ TclSetMemObjectDestructorAPPLEProc* = PROCEDURE {C} (memobj: CL.cl_mem; user_data: ADDRESS);
+ TclSetMemObjectDestructorAPPLE* = PROCEDURE {C}(
                                         memobj: CL.cl_mem; (* memobj *)
-                                        pfn_notify: ADDRESS;(* /*pfn_notify*/)( cl_mem /* memobj */, void* /*user_data*/*)
+                                        pfn_notify: TclSetMemObjectDestructorAPPLEProc;
                                         user_data: ADDRESS(*user_data *)
                                         ): CL.cl_int;
 
 VAR
-  clSetMemObjectDestructorAPPLE-: TclSetMemObjectDestructorAPPLE;
+  SetMemObjectDestructorAPPLE-: TclSetMemObjectDestructorAPPLE;
 
 
 (* Context Logging Functions
@@ -76,13 +47,11 @@ VAR
  *
  * clLogMessagesToSystemLog fowards on all log messages to the Apple System Logger
  *)
-CONST
-  cl_APPLE_ContextLoggingFunctions* = 1;
 
 (* VERSION_1_0 *)
 TYPE
   TclLogMessagesToSystemLogAPPLE* = PROCEDURE {C}(
-                                            CONST  errstr: ARRAY OF CHAR;  (* errstr *)
+                                            CONST errstr: ARRAY OF CHAR;  (* errstr *)
                                             private_info: ADDRESS;        (* private_info *)
                                             cb: CL.size_t;                        (* cb *)
                                             user_data: ADDRESS                  (* user_data *)
@@ -92,31 +61,29 @@ TYPE
 (* VERSION_1_0 *)
 (* clLogMessagesToStdout sends all log messages to the file descriptor stdout *)
   TclLogMessagesToStdoutAPPLE* = PROCEDURE {C}(
-                                            CONST  errstr: ARRAY OF CHAR;  (* errstr *)
-                                            private_info: ADDRESS;      (* private_info *)
-                                            cb: CL.size_t;                        (* cb *)
-                                            user_data: ADDRESS                  (* user_data *)
+                                            CONST errstr: ARRAY OF CHAR;  (* errstr *)
+                                            private_info: ADDRESS;    (* private_info *)
+                                            cb: CL.size_t;        (* cb *)
+                                            user_data: ADDRESS    (* user_data *)
                                             ): CL.cl_int;
 
 (* VERSION_1_0 *)
 (* clLogMessagesToStderr sends all log messages to the file descriptor stderr *)
   TclLogMessagesToStderrAPPLE* = PROCEDURE {C}(
-                                          CONST  errstr: ARRAY OF CHAR;  (* errstr *)
+                                          CONST errstr: ARRAY OF CHAR;  (* errstr *)
                                           private_info: ADDRESS;   (* private_info *)
-                                          cb: CL.size_t;         (* cb *)
-                                          user_data: ADDRESS                  (* user_data *)
+                                          cb: CL.size_t;    (* cb *)
+                                          user_data: ADDRESS  (* user_data *)
                                           ): CL.cl_int;
 
 
 VAR
-  clLogMessagesToSystemLogAPPLE-: TclLogMessagesToSystemLogAPPLE;
-  clLogMessagesToStdoutAPPLE-: TclLogMessagesToStdoutAPPLE;
-  clLogMessagesToStderrAPPLE-: TclLogMessagesToStderrAPPLE;
+  LogMessagesToSystemLogAPPLE-: TclLogMessagesToSystemLogAPPLE;
+  LogMessagesToStdoutAPPLE-: TclLogMessagesToStdoutAPPLE;
+  LogMessagesToStderrAPPLE-: TclLogMessagesToStderrAPPLE;
 
 
 CONST
-	(*  khr_icd extension *)
-	 cl_khr_icd* = 1;
 
 	(*  platform_info *)
 	(*  Accepted as <param_name> to the function clGetPlatformInfo  *)
@@ -127,9 +94,59 @@ CONST
 	CL_PLATFORM_NOT_FOUND_KHR* = -1001;
 
 TYPE
-	TclIcdGetPlatformIDsKHR* = PROCEDURE {C}  (num_entries:  CL.cl_uint ; platforms:  CL.cl_platform_id; num_platforms : ADDRESS):  CL.cl_int;
+	TclIcdGetPlatformIDsKHRProc* = PROCEDURE {C} (num_entries: CL.cl_uint; platforms: ADDRESS (*CL.cl_platform_id *); VAR num_platforms: CL.cl_uint): CL.cl_int;
+	TclIcdGetPlatformIDsKHR* = PROCEDURE {C} (num_entries: CL.cl_uint; platforms: ADDRESS (*CL.cl_platform_id *); VAR num_platforms: CL.cl_uint): CL.cl_int;
 VAR
-	clIcdGetPlatformIDsKHR-: TclIcdGetPlatformIDsKHR;
+	IcdGetPlatformIDsKHR-: TclIcdGetPlatformIDsKHR;
+
+(* Extension: cl_khr_image2D_buffer
+ *
+ * This extension allows a 2D image to be created from a cl_mem buffer without a copy.
+ * The type associated with a 2D image created from a buffer in an OpenCL program is image2d_t.
+ * Both the sampler and sampler-less read_image built-in functions are supported for 2D images
+ * and 2D images created from a buffer.  Similarly, the write_image built-ins are also supported
+ * for 2D images created from a buffer.
+ *
+ * When the 2D image from buffer is created, the client must specify the width,
+ * height, image format (i.e. channel order and channel data type) and optionally the row pitch
+ *
+ * The pitch specified must be a multiple of CL_DEVICE_IMAGE_PITCH_ALIGNMENT pixels.
+ * The base address of the buffer must be aligned to CL_DEVICE_IMAGE_BASE_ADDRESS_ALIGNMENT pixels.
+ *)
+    
+(* ************************************
+ * cl_khr_initalize_memory extension *
+ ************************************ *)
+CONST    
+	CL_CONTEXT_MEMORY_INITIALIZE_KHR* = 200EH;
+    
+    
+(**************************************
+ * cl_khr_terminate_context extension *
+ **************************************)
+    
+	CL_DEVICE_TERMINATE_CAPABILITY_KHR* = 200FH;
+	CL_CONTEXT_TERMINATE_KHR* = 2010H;
+
+(* VERSION_1_2 *)
+(* cl_khr_terminate_context *)
+
+TYPE 
+	TclTerminateContextKHR* = PROCEDURE {C} (context: CL.cl_context): CL.cl_int;
+	TclTerminateContextKHRProc* = PROCEDURE {C} (context: CL.cl_context): CL.cl_int;
+
+VAR clTerminateContextKHR-: TclTerminateContextKHR;
+    
+(*
+ * Extension: cl_khr_spir
+ *
+ * This extension adds support to create an OpenCL program object from a 
+ * Standard Portable Intermediate Representation (SPIR) instance
+ *)
+CONST
+	CL_DEVICE_SPIR_VERSIONS* = 40E0H;
+	CL_PROGRAM_BINARY_TYPE_INTERMEDIATE* = 40E1H;
+
 
 (* *****************************************
  cl_nv_device_attribute_query extension
@@ -153,13 +170,18 @@ CONST
     offset in nano-seconds between an event timestamp and Epoch.  *)
 	CL_DEVICE_PROFILING_TIMER_OFFSET_AMD* = 4036H;
 
+(* *********************************
+* cl_arm_printf extension
+********************************* *)
+	CL_PRINTF_CALLBACK_ARM* = 40B0H;
+	CL_PRINTF_BUFFERSIZE_ARM* = 40B1H;
+
+
 (* VERSION_1_1 *)
     (* **********************************
      cl_ext_device_fission extension
     ********************************** *)
-  CONST
-    cl_ext_device_fission*   = 1;
-
+ 
   TYPE
     (*
     clReleaseDeviceEXT decrements the <device> reference count. After the
@@ -172,7 +194,7 @@ CONST
     *)
     TclReleaseDeviceEXT* = PROCEDURE {C} ( device: CL.cl_device_id ): CL.cl_int;
 VAR
-    clReleaseDeviceEXT- : TclReleaseDeviceEXT;
+    ReleaseDeviceEXT- : TclReleaseDeviceEXT;
     (*
     clReleaseDeviceEXT returns CL_SUCCESS if the function is executed
     successfully or the device is a root level device. It returns
@@ -191,7 +213,7 @@ TYPE
     TclRetainDeviceEXT* = PROCEDURE {C}( device: CL.cl_device_id (*device*)): CL.cl_int;
 
 VAR
-    clRetainDeviceEXT- : TclRetainDeviceEXT;
+    RetainDeviceEXT- : TclRetainDeviceEXT;
 
 TYPE
   	cl_device_partition_property_ext* = CL.cl_ulong;
@@ -367,10 +389,10 @@ TYPE
                             properties: ADDRESS; (* ARRAY OF cl_device_partition_property_ext *)
                             num_entries: CL.cl_uint; (*num_entries*)
                             out_devices: ADDRESS; (* ARRAY OF cl_device_id *)
-                            num_devices: ADDRESS (*CL.cl_uint *)
+                            VAR num_devices: CL.cl_uint
                             ): CL.cl_int;
 VAR
-      clCreateSubDevicesEXT-: TclCreateSubDevicesEXT;
+      CreateSubDevicesEXT-: TclCreateSubDevicesEXT;
 
 CONST
     (* Accepted as a property name in the <properties> parameter of
@@ -505,20 +527,19 @@ CONST
         Accepted as the property list terminator in the <properties> parameter of
         clCreateSubDeviceEXT:
       *)
-      CL_PROPERTIES_LIST_END_EXT* = SYSTEM.VAL(cl_device_partition_property_ext, 0);
+     CL_PROPERTIES_LIST_END_EXT* =  0;
 
       (*
         Accepted as the partition counts list terminator in the <properties>
         parameter of clCreateSubDeviceEXT:
       *)
-      CL_PARTITION_BY_COUNTS_LIST_END_EXT* = SYSTEM.VAL(cl_device_partition_property_ext, 0);
+      CL_PARTITION_BY_COUNTS_LIST_END_EXT* = 0;
 
       (*
         Accepted as the partition names list terminator in the <properties>
         parameter of clCreateSubDeviceEXT:
       *)
-      CL_PARTITION_BY_NAMES_LIST_END_EXT* = SYSTEM.VAL(cl_device_partition_property_ext, -1);
-
+      CL_PARTITION_BY_NAMES_LIST_END_EXT* = -1;
     (* cl_ext_atomic_counters_32 and cl_ext_atomic_counters_64 extensions
      * no extension #define since they have no functions
      *)
@@ -555,44 +576,41 @@ TYPE
                                   ): CL.cl_int;
 
 VAR
-    clEnqueueMigrateMemObjectEXT-: TclEnqueueMigrateMemObjectEXT;
+    EnqueueMigrateMemObjectEXT-: TclEnqueueMigrateMemObjectEXT;
 (* ENDIF *)
 
-PROCEDURE GetExtensionFunctionAddress*(CONST funcname: ARRAY OF CHAR): ADDRESS;
+(* wrapper procedure for CL.GetExtensionFunctionAddress *)
+PROCEDURE GetExtensionFunctionAddress*(CONST funcname: ARRAY OF CHAR; adr: ADDRESS);
 VAR adres: ADDRESS;
 BEGIN
-	adres := CL.clGetExtensionFunctionAddress(funcname);
+	adres := CL.GetExtensionFunctionAddress(funcname);
 	IF ( adres=0) & CL.debug THEN
 		KernelLog.String("ERROR: Extension function: "); KernelLog.String(funcname); KernelLog.String(" NOT found");  KernelLog.Ln;
 	END;
-	ASSERT(adres # 0, 302);
-	RETURN adres;
+	SYSTEM.PUT(adr, adres);
 END GetExtensionFunctionAddress;
-
 
 PROCEDURE Init;
 BEGIN
-	clIcdGetPlatformIDsKHR := SYSTEM.VAL(TclIcdGetPlatformIDsKHR, GetExtensionFunctionAddress('clIcdGetPlatformIDsKHR'));
+	 GetExtensionFunctionAddress('clIcdGetPlatformIDsKHR' , ADDRESSOF( IcdGetPlatformIDsKHR ));
 
 	(* CL_VERSION_1_0 *)
-	clSetMemObjectDestructorAPPLE := SYSTEM.VAL(TclSetMemObjectDestructorAPPLE, GetExtensionFunctionAddress('clSetMemObjectDestructorAPPLE'));
-	clLogMessagesToSystemLogAPPLE := SYSTEM.VAL(TclLogMessagesToSystemLogAPPLE, GetExtensionFunctionAddress('clLogMessagesToSystemLogAPPLE'));
-	clLogMessagesToStdoutAPPLE := SYSTEM.VAL(TclLogMessagesToStdoutAPPLE, GetExtensionFunctionAddress('clLogMessagesToStdoutAPPLE'));
-	clLogMessagesToStderrAPPLE := SYSTEM.VAL(TclLogMessagesToStderrAPPLE, GetExtensionFunctionAddress('clLogMessagesToStderrAPPLE'));
+	 GetExtensionFunctionAddress('clSetMemObjectDestructorAPPLE' , ADDRESSOF ( SetMemObjectDestructorAPPLE ));
+	 GetExtensionFunctionAddress('clLogMessagesToSystemLogAPPLE', ADDRESSOF( LogMessagesToSystemLogAPPLE ));
+	 GetExtensionFunctionAddress('clLogMessagesToStdoutAPPLE' , ADDRESSOF( LogMessagesToStdoutAPPLE ));
+	 GetExtensionFunctionAddress('clLogMessagesToStderrAPPLE' , ADDRESSOF( LogMessagesToStderrAPPLE ));
 
 	(* CL_VERSION_1_1*)
-	clReleaseDeviceEXT := SYSTEM.VAL(TclReleaseDeviceEXT, GetExtensionFunctionAddress('clReleaseDeviceEXT'));
-	clRetainDeviceEXT := SYSTEM.VAL(TclRetainDeviceEXT, GetExtensionFunctionAddress('clRetainDeviceEXT'));
-	clCreateSubDevicesEXT := SYSTEM.VAL(TclCreateSubDevicesEXT, GetExtensionFunctionAddress('clCreateSubDevicesEXT'));
+	 GetExtensionFunctionAddress('clReleaseDeviceEXT' , ADDRESSOF( ReleaseDeviceEXT ));
+	 GetExtensionFunctionAddress('clRetainDeviceEXT', ADDRESSOF( RetainDeviceEXT ));
+	 GetExtensionFunctionAddress('clCreateSubDevicesEXT' , ADDRESSOF( CreateSubDevicesEXT ));
 
 	(* CL_VERSION_1_0 *)
-	clEnqueueMigrateMemObjectEXT := SYSTEM.VAL(TclEnqueueMigrateMemObjectEXT, GetExtensionFunctionAddress('clEnqueueMigrateMemObjectEXT'));
-
+	 GetExtensionFunctionAddress('clEnqueueMigrateMemObjectEXT' , ADDRESSOF( EnqueueMigrateMemObjectEXT ));
+	 
 END Init;
 
 BEGIN
-
-  Init;
-
+	Init;
 END OpenCLext.
 
