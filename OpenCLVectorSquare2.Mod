@@ -1,31 +1,21 @@
 MODULE OpenCLVectorSquare1; (** AUTHOR "fnecati"; PURPOSE "Square of vectors using OpenCL"; *)
-IMPORT CL := OpenCL,  KernelLog, Streams, Utils:=OpenCLUtils, Strings;
+IMPORT CL := OpenCL,  KernelLog, Streams, Utils:=OpenCLUtils;
 
-CONST DATA_SIZE=32768;
+CONST DATA_SIZE=32768 ;
 
 TYPE
 	RVector = POINTER TO ARRAY OF REAL;
 
-
-VAR
-	wr: Streams.Writer;
-      CRLF: ARRAY 2 OF CHAR;
-
-(* Create kernels using Streams.Writer *)
-PROCEDURE MyKernelSource():Strings.String;
-VAR 
-      buf: Strings.String;
-BEGIN
- NEW(buf,1024);
- buf^ := 
- " __kernel void square(__global float* input, __global float* output, const unsigned int count)
+CONST kernelsource = 
+ " kernel void square(global float* input, global float* output, const unsigned int count)
 	{
 	int i  = get_global_id(0);
      if(i < count)
          output[i] = input[i] * input[i];
 	}";
- RETURN buf;
-END MyKernelSource;
+
+VAR
+	wr: Streams.Writer;
 
 PROCEDURE Test*;
 VAR
@@ -37,18 +27,10 @@ VAR
 	global  : CL.size_t;  (* global domain size for our calculation *)
 	local   : CL.size_t;  (* local domain size for our calculation *)
 
-	platformids  : POINTER TO ARRAY OF CL.cl_platform_id;
 	platform: CL.cl_platform_id;
-	nplatforms: LONGINT;
-
-	deviceids : POINTER TO ARRAY OF CL.cl_device_id;
 	deviceid : CL.cl_device_id;
-	ndevices: LONGINT;
-
 	context : CL.cl_context;
 	commands : CL.cl_command_queue;
-
-	kernelsource: Strings.String;
 
 	prog      : CL.cl_program;       (* compute program *)
 	kernel    : CL.cl_kernel;         (* compute kernel *)
@@ -59,11 +41,7 @@ VAR
 	correct: LONGINT;
 	tmpd: REAL;
 
-	buf:  ARRAY 1024 OF  CHAR;
-	bufwritten: LONGINT;
-	dumy: LONGINT;
-	adr: ADDRESS;
-	retsize: CL.size_t;
+	size, retsize: CL.size_t;
 BEGIN
 	(*Fill our data set with float values *)
 	count := DATA_SIZE;
@@ -72,42 +50,11 @@ BEGIN
 
 	FOR i:=0 TO count - 1 DO data[i]:=i; END;
 
-	err := CL.GetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
-	wr.String("clGetPlatformIDs nplatforms: "); wr.String(Utils.GetError(err)); wr.Ln;
-	IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
-		wr.String('Error: Cannot get # of platforms!'); wr.Ln; wr.Update;
+	IF ~Utils.GetPlatformDevice("NVIDIA", CL.DEVICE_TYPE_GPU, platform, deviceid) THEN
+		wr.String("ERROR: Couldnot find Vendor and device"); wr.Ln; wr.Update;
 		RETURN
 	END;
-
-	NEW(platformids, nplatforms);
-
-	err := CL.GetPlatformIDs( nplatforms, ADDRESSOF(platformids[0]), 0 );
-	wr.String("clGetPlatformIDs : "); wr.String(Utils.GetError(err)); wr.Ln;
-	IF (err # CL.SUCCESS) THEN
-		wr.String('Error: Cannot get platforms!'); wr.Ln; wr.Update;
-		RETURN
-	END;
-
-    	platform := platformids[0];
-
-	(*  Devices  *)
-
-	 err := CL.GetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
-      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
-	        wr.String("clGetDeviceIDs Error: "); wr.String(Utils.GetError(err)); wr.Ln;
-          wr.String('Error: Cannot get number of GPU devices!'); wr.Ln; wr.Update;
-          RETURN
-       END;
-
-	NEW(deviceids, ndevices);
-	err := CL.GetDeviceIDs(platform, CL.DEVICE_TYPE_GPU, ndevices, ADDRESSOF(deviceids[0]), 0);
-	wr.String("clGetDeviceIDs : "); wr.String(Utils.GetError(err)); wr.Ln;
-	IF (err # CL.SUCCESS) THEN
-		wr.String('Error: Cannot get devices!'); wr.Ln; wr.Update;
-		RETURN
-	END;
-	deviceid := deviceids[0];
-
+	
 	context := CL.CreateContext(NIL, 1, ADDRESSOF(deviceid), NIL , NIL, err);
 	wr.String("clContext : "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 	IF context = 0 THEN
@@ -122,57 +69,14 @@ BEGIN
 		RETURN
 	END;
 
-	kernelsource := MyKernelSource(); 
 
-	IF kernelsource = NIL THEN
-		wr.String(" File Load Error"); wr.Ln; wr.Update; wr.Ln;
-		RETURN;
+	(* build program *)
+	prog := Utils.BuildProgramFromStringSource(context, kernelsource, "", err);
+	IF (err # CL.SUCCESS) THEN
+		wr.String('Error: Utils.BuildProgramFromStringSource'); wr.Ln; wr.Update;
+		RETURN
 	END;
 	
-    (* Create the compute program from the source buffer *)
-	(*	prog := CL.CreateProgramWithSource(context, 1, ADDRESSOF(kernelsource), NIL, err);*)
-	prog := Utils.CreateProgramWithSource(context, kernelsource^,  err);
-	wr.String("clCreateProgramWithSource : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
-	IF prog = 0 THEN
-		wr.String("prog NIL: "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
-		RETURN
-	END;
-
-	err := CL.GetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
-	wr.String("clGetProgramInfo : "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
-	IF (err # CL.SUCCESS) THEN
-		wr.String('Error: clGetProgramInfo!'); wr.Ln; wr.Update;
-		RETURN
-	END;
-	wr.String("bufwritten= "); wr.Int(bufwritten, 0); wr.Ln;
-	wr.String("Prog Source: "); wr.Ln;
-	wr.String(buf); wr.Ln; wr.Update;
-
-	err := CL.GetProgramInfo(prog, CL.PROGRAM_NUM_DEVICES, SIZEOF(LONGINT), ADDRESSOF(dumy), bufwritten);
-	wr.String("clGetProgramInfo : "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
-	IF (err # CL.SUCCESS) THEN
-		wr.String("clGetProgramInfo Error: "); wr.String(Utils.GetError(err)); wr.Ln;
-		wr.String('Error: clGetProgramInfo!'); wr.Ln; wr.Update;
-		RETURN
-	END;
-	wr.String("numdevices dumy= "); wr.Int(dumy, 0); wr.Ln;
-
-	(* Build the program executable *)
-	err := CL.BuildProgram(prog, 0, 0, "", 0, 0);
-	wr.String("clBuildProgram : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
-	IF err # CL.SUCCESS THEN
-		wr.String('Error: Failed to build program executable!'); wr.Ln; wr.Update;
-	END;
-
-	err := CL.GetProgramBuildInfo(prog, deviceid,CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
-	wr.String("clGetProgramBuildInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
-	IF (err # CL.SUCCESS) THEN
-		wr.String('Error: clGetProgramBuildInfo!'); wr.Ln; wr.Update;
-		RETURN
-	END;
-	wr.String("bufwritten= "); wr.Int(bufwritten, 0); wr.Ln;
-	wr.String("Prog Build Info: "); wr.String(buf); wr.Ln; wr.Update;
-
 	 (* Create the compute kernel in the program we wish to run *)
 	kernel := CL.CreateKernel(prog, "square", err);
 	wr.String("clCreateKernel : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
@@ -181,18 +85,12 @@ BEGIN
 		RETURN
 	END;
 
-	err := CL.GetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(CL.size_t), ADDRESSOF(local), retsize);
-	wr.String("clGetKernelWorkGroupInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
-	IF (err # CL.SUCCESS) THEN
-		wr.String('Error: clGetKernelWorkGroupInfo!'); wr.Ln; wr.Update;
-		RETURN
-	END;
-
 	(* Create the input and output arrays in device memory for our calculation *)
-	input := CL.CreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(REAL) * count, 0, err);
+	size := SIZEOF(REAL) * count;
+	input := CL.CreateBuffer(context,  CL.MEM_READ_WRITE, size , 0, err);
 	wr.String("clCreateBuffer input  : "); wr.String(Utils.GetError(err)); wr.Ln;
 
-	output := CL.CreateBuffer(context, CL.MEM_WRITE_ONLY, SIZEOF(REAL) * count, 0, err);
+	output := CL.CreateBuffer(context, CL.MEM_READ_WRITE, size, 0, err);
 	wr.String("clCreateBuffer output  : "); wr.String(Utils.GetError(err)); wr.Ln;
 
 	IF (input = 0) OR   (output = 0) THEN
@@ -201,7 +99,7 @@ BEGIN
 	END;
 
 	(* Write our data set into the input array in device memory *)
-	err := CL.EnqueueWriteBuffer(commands, input, CL.CL_TRUE, 0, SIZEOF(REAL) * count, ADDRESSOF(data[0]), 0, 0, 0);
+	err := CL.EnqueueWriteBuffer(commands, input, CL.CL_TRUE, 0, size, ADDRESSOF(data[0]), 0, 0, 0);
 	wr.String("clEnqueueWriteBuffer : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to write source array!'); wr.Ln; wr.Update;
@@ -225,7 +123,7 @@ BEGIN
 
 	(* Get the maximum work group size for executing the kernel on the device *)
 	err := CL.GetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(CL.size_t), ADDRESSOF(local), retsize);
-	wr.String("clGetKernelWorkGroupInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
+	wr.String("clGetKernelWorkGroupInfo : "); wr.Int(retsize, 0); wr.Int(local, 10); wr.String(" : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to retrieve kernel work group info!'); wr.Ln; wr.Update;
 		RETURN
@@ -246,7 +144,7 @@ BEGIN
 	wr.String("clFinish : "); wr.String(Utils.GetError(err)); wr.Ln;
 
 	(* Read back the results from the device to verify the output *)
-	err := CL.EnqueueReadBuffer( commands, output, CL.CL_TRUE, 0, SIZEOF(REAL) * count, ADDRESSOF(results[0]), 0, 0, 0);
+	err := CL.EnqueueReadBuffer( commands, output, CL.CL_TRUE, 0, size, ADDRESSOF(results[0]), 0, 0, 0);
 	wr.String("EnqueueReadBuffer : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to read output array! '); wr.Ln; wr.Update;
@@ -288,10 +186,7 @@ BEGIN
 END Test;
 
 BEGIN
-CRLF[0]:=0AX;
-CRLF[1]:=0X;
-
-Streams.OpenWriter(wr, KernelLog.Send);
+	Streams.OpenWriter(wr, KernelLog.Send);
 END OpenCLVectorSquare1.
 
 System.Free OpenCLVectorSquare1~

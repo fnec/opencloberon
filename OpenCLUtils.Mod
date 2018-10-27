@@ -22,8 +22,10 @@ CONST
 	
 
 TYPE
+	SizeArray = POINTER TO ARRAY OF CL.size_t;
+	
 	Device* = RECORD
-		devid*: CL.cl_device_id;
+		id*: CL.cl_device_id;
 		platformid*: CL.cl_platform_id;
 		
 		name*: ARRAY 64 OF CHAR;
@@ -31,13 +33,13 @@ TYPE
 		driverVersion*: ARRAY 64 OF CHAR;
 		deviceVersion*: ARRAY 64 OF CHAR;
 		openclVersion*: ARRAY 64 OF CHAR;
-		devtype*: HUGEINT;
+		devtype*: CL.cl_bitfield;
 		typestr*: ARRAY 32 OF CHAR;
 		
-		maxComputeUnits*: LONGINT;
-		maxWorkItemDimension*: LONGINT;
-		maxWorkItemSize*: LONGINT;
-		maxWorkGroupSize*: LONGINT;
+		maxComputeUnits*: CL.cl_uint;
+		maxWorkItemDimension*: CL.cl_uint;
+		maxWorkItemSize*: SizeArray;
+		maxWorkGroupSize*: CL.size_t;
 		
 		(* add others .. *)
 	END;	
@@ -53,7 +55,7 @@ TYPE
 		extensions*: ARRAY 128 OF CHAR;
 		
 		numOfDevices*: LONGINT;
-		deviceIds*: Devices;
+		devices*: Devices;
 	END;
 		
 	Platforms*  = POINTER TO ARRAY OF Platform;
@@ -200,12 +202,15 @@ VAR
 	nplatforms: LONGINT;
 	deviceids : POINTER TO ARRAY OF CL.cl_device_id;
 	ndevices: LONGINT;
-	devtype: HUGEINT;
+	devtype: CL.cl_bitfield;
 
 	i, k: LONGINT;
 	str : ARRAY 32 OF CHAR;
 	buf  :  ARRAY 1024 OF  CHAR;
-	intvalue: LONGINT;
+
+	uintvalue: CL.cl_uint;
+	workitemsize: SizeArray;
+	sizevalue: CL.size_t;
 	
 BEGIN
 	
@@ -253,29 +258,29 @@ BEGIN
 			platforms[i].numOfDevices := ndevices;
 			
 			NEW(deviceids, ndevices);
-			NEW(platforms[i].deviceIds, ndevices);
+			NEW(platforms[i].devices, ndevices);
 			
 		
 				err := CL.GetDeviceIDs(platform, CL.DEVICE_TYPE_ALL, ndevices, ADDRESSOF(deviceids[0]), 0);
 				
 				FOR k:=0 TO ndevices-1 DO
-					platforms[i].deviceIds[k].devid := deviceids[k];
-					platforms[i].deviceIds[k].platformid := platform;
+					platforms[i].devices[k].id := deviceids[k];
+					platforms[i].devices[k].platformid := platform;
 					
 					 err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_NAME, LEN(buf), ADDRESSOF(buf[0]), 0);
-					COPY(buf, platforms[i].deviceIds[k].name);
+					COPY(buf, platforms[i].devices[k].name);
 					 err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_VENDOR, LEN(buf), ADDRESSOF(buf[0]), 0);
-					COPY(buf, platforms[i].deviceIds[k].vendor);
+					COPY(buf, platforms[i].devices[k].vendor);
 					 err := CL.GetDeviceInfo(deviceids[k],CL.DRIVER_VERSION, LEN(buf), ADDRESSOF(buf[0]), 0);
-					COPY(buf, platforms[i].deviceIds[k].driverVersion);
+					COPY(buf, platforms[i].devices[k].driverVersion);
 
 					 err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_VERSION, LEN(buf), ADDRESSOF(buf[0]), 0);
-					COPY(buf, platforms[i].deviceIds[k].deviceVersion);
+					COPY(buf, platforms[i].devices[k].deviceVersion);
 					 err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_OPENCL_C_VERSION, LEN(buf), ADDRESSOF(buf[0]), 0);
-					COPY(buf, platforms[i].deviceIds[k].openclVersion);
+					COPY(buf, platforms[i].devices[k].openclVersion);
 					
-					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_TYPE,  SIZEOF(HUGEINT), ADDRESSOF(devtype), 0);
-					platforms[i].deviceIds[k].devtype := devtype;
+					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_TYPE,  SIZEOF(CL.cl_bitfield), ADDRESSOF(devtype), 0);
+					platforms[i].devices[k].devtype := devtype;
 					IF devtype = CL.DEVICE_TYPE_DEFAULT THEN str := 'DEVICE_TYPE_DEFAULT';
 					ELSIF devtype = CL.DEVICE_TYPE_CPU THEN str := 'DEVICE_TYPE_CPU';
 					ELSIF devtype = CL.DEVICE_TYPE_GPU THEN str := 'DEVICE_TYPE_GPU';
@@ -283,16 +288,18 @@ BEGIN
 					ELSIF devtype = CL.DEVICE_TYPE_CUSTOM THEN str := 'DEVICE_TYPE_CUSTOM';
 					ELSE str := "Unknown Device Type"
   					END;
-  					COPY(str, platforms[i].deviceIds[k].typestr);
+  					COPY(str, platforms[i].devices[k].typestr);
 
-					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_MAX_COMPUTE_UNITS, SIZEOF(LONGINT), ADDRESSOF(intvalue), 0);
-					platforms[i].deviceIds[k].maxComputeUnits := intvalue;
-					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_MAX_WORK_ITEM_DIMENSIONS, SIZEOF(LONGINT), ADDRESSOF(intvalue), 0);
-					platforms[i].deviceIds[k].maxWorkItemDimension := intvalue;
-					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_MAX_WORK_ITEM_SIZES, SIZEOF(LONGINT), ADDRESSOF(intvalue), 0);
-					platforms[i].deviceIds[k].maxWorkItemSize := intvalue;
-					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_MAX_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(intvalue), 0);
-					platforms[i].deviceIds[k].maxWorkGroupSize := intvalue;
+					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_MAX_COMPUTE_UNITS, SIZEOF(CL.cl_uint), ADDRESSOF(uintvalue), 0);
+					platforms[i].devices[k].maxComputeUnits := uintvalue;
+					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_MAX_WORK_ITEM_DIMENSIONS, SIZEOF(CL.cl_uint), ADDRESSOF(uintvalue), 0);
+					platforms[i].devices[k].maxWorkItemDimension := uintvalue;
+					NEW(workitemsize, uintvalue);
+					
+					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_MAX_WORK_ITEM_SIZES, uintvalue*SIZEOF(CL.size_t), ADDRESSOF(workitemsize[0]), 0);
+					platforms[i].devices[k].maxWorkItemSize := workitemsize;
+					err := CL.GetDeviceInfo(deviceids[k],CL.DEVICE_MAX_WORK_GROUP_SIZE, SIZEOF(CL.size_t), ADDRESSOF(sizevalue), 0);
+					platforms[i].devices[k].maxWorkGroupSize := sizevalue;
 					
 					(* add others ... *)
 					 
@@ -302,7 +309,7 @@ BEGIN
 	END; (* i *)	
 END SearchPlatformsAndDevices;
 
-PROCEDURE GetPlatformByVendor*(vname: ARRAY OF CHAR; VAR p: Platform): BOOLEAN;
+PROCEDURE GetPlatformByVendor*(CONST vname: ARRAY OF CHAR; VAR p: Platform): BOOLEAN;
 VAR i: LONGINT;
 	found: BOOLEAN;
 BEGIN
@@ -320,9 +327,55 @@ BEGIN
 	RETURN found;	
 END GetPlatformByVendor;
 
+(* vendors AMD, NVIDIA, Intel; devicetype: CPU, GPU,.. *)
+
+PROCEDURE GetPlatformDevice*(CONST vname: ARRAY OF CHAR; devicetype: CL.cl_bitfield; VAR platform: CL.cl_platform_id; VAR device: CL.cl_device_id): BOOLEAN;
+VAR i: LONGINT;
+	found: BOOLEAN;
+	p: Platform;
+BEGIN
+	(* first, search platform *)
+	found := FALSE;
+	IF NumberOfPlatforms > 0 THEN
+		i := 0;
+		WHILE (i< NumberOfPlatforms) & ~found DO
+			IF Strings.Pos(vname, platforms[i].vendor) # -1 THEN		
+				p := platforms[i];
+				found := TRUE;
+				
+			END;
+			INC(i);			
+		END;		
+	END;
+	
+	IF ~found THEN
+		 KernelLog.String("ERROR: Could find Platform Vendor: "); KernelLog.String(vname); KernelLog.Ln; 
+	 	RETURN FALSE
+	 END;
+	 
+	platform := p.id;
+	
+	(* search device type, return first found*)
+	found:= FALSE;
+	i := 0;
+	WHILE (i <= p.numOfDevices) & ~found DO
+		IF p.devices[i].devtype = devicetype THEN
+			found := TRUE;
+			device := p.devices[i].id;
+		END;
+		INC(i);
+	END;
+	
+	IF ~found THEN 
+		KernelLog.String("ERROR: Could find  "); 
+		KernelLog.String(vname); KernelLog.String(": GPU "); KernelLog.Ln;
+	END;
+	RETURN found;	
+END GetPlatformDevice;
+
 (** Roundup division function for efficient workgrup size calculation *)
-PROCEDURE RoundUp*(groupsize, globalsize: LONGINT): LONGINT; (* size_t *)
-VAR r: LONGINT;
+PROCEDURE RoundUp*(groupsize, globalsize: CL.size_t): CL.size_t; (* size_t *)
+VAR r: CL.size_t;
 BEGIN
 	r := globalsize MOD groupsize;
 	IF r = 0 THEN RETURN globalsize END;

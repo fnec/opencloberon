@@ -10,7 +10,7 @@ CONST
 
 
 TYPE
-	IVector=ARRAY [*] OF LONGINT;
+(*	IVector=ARRAY [*] OF CL.size_t; *)
 
 	KillerMsg = OBJECT
 	END KillerMsg;
@@ -35,7 +35,7 @@ TYPE
 		kernel    : CL.cl_kernel;         (* compute kernel *)
 
 		objmem   : CL.cl_mem;  (* device memory used for the input array *)
-		global  : IVector; (* global domain size for our calculation *)
+		global  : ARRAY 2 OF CL.size_t; (* global domain size for our calculation *)
 		Left, Top, Bottom, Right: REAL;
 		Stride: LONGINT;
 		inited: BOOLEAN;
@@ -67,7 +67,7 @@ TYPE
 		END
 	END SetTopLeft;
 
-	PROCEDURE KeyEvent* (ucs: LONGINT; flags: SET; keysym: LONGINT);
+	PROCEDURE KeyEvent (ucs: LONGINT; flags: SET; keysym: LONGINT);
 	BEGIN
 		CASE CHR(ucs) OF
 		 "t":	Top := Top -0.1; SetTopLeft;;
@@ -87,13 +87,13 @@ TYPE
 		END
 	END Handle;
 	
-	PROCEDURE InitCL*;
+	PROCEDURE InitCL;
 	VAR err: LONGINT;
 	
 (*	bufwritten: LONGINT;
 	buf: ARRAY 4096 OF CHAR;*)
 	BEGIN
-		NEW(global,2);
+	
 		global[0] := WindowWidth; global[1] := WindowHeight;
 
 		err := CL.GetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
@@ -168,12 +168,12 @@ TYPE
 			DrawIt;
 		END InitCL;
 
-		PROCEDURE Draw*(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;
 
-		PROCEDURE Close*;
+		PROCEDURE Close;
 		VAR err: LONGINT;
 		BEGIN
 			(* Free resources *)
@@ -235,7 +235,7 @@ BEGIN {EXCLUSIVE}
 	DEC(nofWindows)
 END DecCount;
 
-PROCEDURE Cleanup*;
+PROCEDURE Cleanup;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WM.WindowManager;
@@ -252,8 +252,8 @@ BEGIN
 	Modules.InstallTermHandler(Cleanup);
 END MyMandelbrotCL.
 
-SystemTools.Free MyMandelbrotCL~
+System.Free MyMandelbrotCL~
 
-SystemTools.FreeDownTo OpenCL ~
+System.FreeDownTo OpenCL ~
 
 MyMandelbrotCL.Open ~

@@ -13,7 +13,7 @@ CONST
 	WindowWidth = 512; WindowHeight = 512;
 
 TYPE
-	IVector = ARRAY [*] OF LONGINT;
+	IVector = ARRAY [*] OF CL.size_t;
  	RVector = ARRAY [4] OF REAL;
 
 	KillerMsg = OBJECT
@@ -54,18 +54,20 @@ TYPE
 		MaxWorkGroupSize: CL.size_t;
 		WorkGroupItems : LONGINT;
 		WorkGroupSize: IVector;
-		sizeX, sizeY: LONGINT;
+		sizeX, sizeY: CL.size_t;
 
 		kernelEvent, readEvent: CL.cl_event; (* for event profiling *)
 		endupdate: BOOLEAN;
-	
+		titleString: Strings.String;
+		
 		PROCEDURE &New;
 		BEGIN
 			Init(WindowWidth, WindowHeight, FALSE);
 			manager := WM.GetDefaultManager();
 			manager.Add(100, 100, SELF, {WM.FlagFrame, WM.FlagClose, WM.FlagNoResizing});
-
-			SetTitle(Strings.NewString("JuliaSetCL: "));
+			NEW(titleString, 128);
+			titleString^ := "JuliaSetCL: ";
+			SetTitle(titleString);
 			SetIcon(WMGraphics.LoadImage("WMIcons.tar://TuringCoatWnd.png", TRUE));
 
 			NEW(rand);
@@ -86,7 +88,7 @@ TYPE
 		VAR err: LONGINT;
 			bufwritten: LONGINT;
 			 buf: ARRAY 1024 OF CHAR;
-			 adr: ADDRESS;
+			retsize: CL.size_t;
 		BEGIN
 			epsilon := 0.001;
 			WorkGroupItems := 32;
@@ -149,8 +151,7 @@ TYPE
 			out.String("clCreateCommandQueue: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 			
 			kernelsource := Utils.LoadProgramSource("opencloberon/qjulia_kernel.cl", "");
-			adr := ADDRESSOF(kernelsource^[0]);
-			prog := CL.CreateProgramWithSource(context, 1, ADDRESSOF(adr), 0, err);
+			prog := Utils.CreateProgramWithSource(context, kernelsource^, err);
 			out.String("clCreateProgramWithSource: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
 
@@ -179,7 +180,7 @@ TYPE
 			err := CL.GetKernelInfo(kernel, CL.KERNEL_FUNCTION_NAME, LEN(buf), ADDRESSOF(buf[0]),0);
 			out.String("Kernelname :"); out.String(buf); out.Ln; out.Update;
 
-			err := CL.GetKernelWorkGroupInfo(kernel, deviceid, CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(MaxWorkGroupSize), 0);
+			err := CL.GetKernelWorkGroupInfo(kernel, deviceid, CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(CL.size_t), ADDRESSOF(MaxWorkGroupSize), retsize);
 			out.String("MaxWorkGroupSize= "); out.Int(MaxWorkGroupSize, 0); out.Ln; out.Update;
 
 			IF MaxWorkGroupSize>1 THEN
@@ -217,7 +218,7 @@ TYPE
 		END InitCL;
 
 
-		PROCEDURE KeyEvent* (ucs: LONGINT; flags: SET; keysym: LONGINT);
+		PROCEDURE KeyEvent (ucs: LONGINT; flags: SET; keysym: LONGINT);
 		CONST
 			stepSize = 0.05;
 
@@ -252,12 +253,12 @@ TYPE
 			END
 		END Handle;
 
-		PROCEDURE Draw*(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;
 
-		PROCEDURE Close*;
+		PROCEDURE Close;
 		VAR err: LONGINT;
 		BEGIN
 			BEGIN{EXCLUSIVE} alive := FALSE; animated := FALSE; AWAIT(endupdate) END;
@@ -313,7 +314,7 @@ TYPE
 		    END;
 		END UpdateColor;
 
-		PROCEDURE Interpolate( VAR m: RVector; t: REAL; a, b: RVector );
+		PROCEDURE Interpolate( VAR m: RVector; t: REAL; CONST a, b: RVector );
 		VAR i: LONGINT;
 		BEGIN
 		    FOR i:=0 TO 3 DO
@@ -372,8 +373,8 @@ TYPE
 
 				Strings.Append(str1, str2);
 				Strings.Append(str1, " ms.");
+				COPY(str1, titleString^);
 
-				SetTitle(Strings.NewString(str1));
 				Raster.Copy(mimage,img, 0,0,WindowWidth, WindowHeight, 0,0, mode);
 				Invalidate(WMRectangles.MakeRect(0, 0, GetWidth(), GetHeight()));
 			END;
@@ -417,7 +418,7 @@ BEGIN {EXCLUSIVE}
 	DEC(nofWindows)
 END DecCount;
 
-PROCEDURE Cleanup*;
+PROCEDURE Cleanup;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WM.WindowManager;
@@ -435,9 +436,9 @@ BEGIN
 	Streams.OpenWriter(out, KernelLog.Send);
 END MyJuliasetCL.
 
-SystemTools.Free  MyJuliasetCL  ~
+System.Free  MyJuliasetCL  ~
 
-SystemTools.FreeDownTo OpenCL ~
+System.FreeDownTo OpenCL ~
 
 MyJuliasetCL.Open ~
 

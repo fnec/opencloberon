@@ -45,7 +45,7 @@ VAR
 	buf:  ARRAY 1024 OF  CHAR;
 	bufwritten: LONGINT;
 	dumy: LONGINT;
-	adr: ADDRESS;
+	retsize: CL.size_t;
 	
 BEGIN
 	(*Fill our data set with float values *)
@@ -112,8 +112,8 @@ BEGIN
 	END;
 
     (* Create the compute program from the source buffer *)
-    	adr := ADDRESSOF(kernelsource[0]);
-	prog := CL.CreateProgramWithSource(context, 1, ADDRESSOF(adr), 0, err);
+ 
+	prog := Utils.CreateProgramWithSource(context, kernelsource^, err);
 	wr.String("clCreateProgramWithSource : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF prog = 0 THEN
 		wr.String("prog NIL: "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
@@ -163,7 +163,7 @@ BEGIN
 		RETURN
 	END;
 
-	err := CL.GetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(local), 0);
+	err := CL.GetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(CL.size_t), ADDRESSOF(local), retsize);
 	wr.String("clGetKernelWorkGroupInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: clGetKernelWorkGroupInfo!'); wr.Ln; wr.Update;
@@ -206,7 +206,7 @@ BEGIN
 	END;
 
 	(* Get the maximum work group size for executing the kernel on the device *)
-	err := CL.GetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(local), 0);
+	err := CL.GetKernelWorkGroupInfo(kernel, deviceid,  CL.KERNEL_WORK_GROUP_SIZE, SIZEOF(CL.size_t), ADDRESSOF(local), retsize);
 	wr.String("clGetKernelWorkGroupInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to retrieve kernel work group info!'); wr.Ln; wr.Update;
@@ -274,8 +274,8 @@ BEGIN
 Streams.OpenWriter(wr, KernelLog.Send);
 END OpenCLVectorSquare.
 
-SystemTools.Free OpenCLVectorSquare ~
+System.Free OpenCLVectorSquare ~
 
-SystemTools.FreeDownTo OpenCL ~
+System.FreeDownTo OpenCL ~
 
 OpenCLVectorSquare.Test ~

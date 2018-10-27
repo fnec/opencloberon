@@ -1,4 +1,4 @@
-MODULE OpenCLext; (** AUTHOR "fnecati"; PURPOSE "OpenCL binding for cl_ext.h, WinAos"; *)
+MODULE OpenCLext; (** AUTHOR "fnecati"; PURPOSE "OpenCL binding for cl_ext.h, LinuxAos"; *)
 IMPORT SYSTEM, CL:=OpenCL, KernelLog;
 
 (*  khr_fp64 extension - no extension #define since it has no functions  *)
@@ -28,8 +28,8 @@ CONST
 
 (* VERSION_1_0 *)
 TYPE
- TclSetMemObjectDestructorAPPLEProc* = PROCEDURE {WINAPI} (memobj: CL.cl_mem; user_data: ADDRESS);
- TclSetMemObjectDestructorAPPLE* = PROCEDURE {WINAPI}(
+ TclSetMemObjectDestructorAPPLEProc* = PROCEDURE {PlatformCC} (memobj: CL.cl_mem; user_data: ADDRESS);
+ TclSetMemObjectDestructorAPPLE* = PROCEDURE {PlatformCC}(
                                         memobj: CL.cl_mem; (* memobj *)
                                         pfn_notify: TclSetMemObjectDestructorAPPLEProc;
                                         user_data: ADDRESS(*user_data *)
@@ -50,7 +50,7 @@ VAR
 
 (* VERSION_1_0 *)
 TYPE
-  TclLogMessagesToSystemLogAPPLE* = PROCEDURE {WINAPI}(
+  TclLogMessagesToSystemLogAPPLE* = PROCEDURE {PlatformCC}(
                                             CONST errstr: ARRAY OF CHAR;  (* errstr *)
                                             private_info: ADDRESS;        (* private_info *)
                                             cb: CL.size_t;                        (* cb *)
@@ -60,7 +60,7 @@ TYPE
 
 (* VERSION_1_0 *)
 (* clLogMessagesToStdout sends all log messages to the file descriptor stdout *)
-  TclLogMessagesToStdoutAPPLE* = PROCEDURE {WINAPI}(
+  TclLogMessagesToStdoutAPPLE* = PROCEDURE {PlatformCC}(
                                             CONST errstr: ARRAY OF CHAR;  (* errstr *)
                                             private_info: ADDRESS;    (* private_info *)
                                             cb: CL.size_t;        (* cb *)
@@ -69,7 +69,7 @@ TYPE
 
 (* VERSION_1_0 *)
 (* clLogMessagesToStderr sends all log messages to the file descriptor stderr *)
-  TclLogMessagesToStderrAPPLE* = PROCEDURE {WINAPI}(
+  TclLogMessagesToStderrAPPLE* = PROCEDURE {PlatformCC}(
                                           CONST errstr: ARRAY OF CHAR;  (* errstr *)
                                           private_info: ADDRESS;   (* private_info *)
                                           cb: CL.size_t;    (* cb *)
@@ -94,8 +94,8 @@ CONST
 	CL_PLATFORM_NOT_FOUND_KHR* = -1001;
 
 TYPE
-	TclIcdGetPlatformIDsKHRProc* = PROCEDURE {WINAPI} (num_entries: CL.cl_uint; platforms: ADDRESS (*CL.cl_platform_id *); VAR num_platforms: CL.cl_uint): CL.cl_int;
-	TclIcdGetPlatformIDsKHR* = PROCEDURE {WINAPI} (num_entries: CL.cl_uint; platforms: ADDRESS (*CL.cl_platform_id *); VAR num_platforms: CL.cl_uint): CL.cl_int;
+	TclIcdGetPlatformIDsKHRProc* = PROCEDURE {PlatformCC} (num_entries: CL.cl_uint; platforms: ADDRESS (*CL.cl_platform_id *); VAR num_platforms: CL.cl_uint): CL.cl_int;
+	TclIcdGetPlatformIDsKHR* = PROCEDURE {PlatformCC} (num_entries: CL.cl_uint; platforms: ADDRESS (*CL.cl_platform_id *); VAR num_platforms: CL.cl_uint): CL.cl_int;
 VAR
 	IcdGetPlatformIDsKHR-: TclIcdGetPlatformIDsKHR;
 
@@ -132,8 +132,8 @@ CONST
 (* cl_khr_terminate_context *)
 
 TYPE 
-	TclTerminateContextKHR* = PROCEDURE {WINAPI} (context: CL.cl_context): CL.cl_int;
-	TclTerminateContextKHRProc* = PROCEDURE {WINAPI} (context: CL.cl_context): CL.cl_int;
+	TclTerminateContextKHR* = PROCEDURE {PlatformCC} (context: CL.cl_context): CL.cl_int;
+	TclTerminateContextKHRProc* = PROCEDURE {PlatformCC} (context: CL.cl_context): CL.cl_int;
 
 VAR clTerminateContextKHR-: TclTerminateContextKHR;
     
@@ -192,7 +192,7 @@ CONST
     successfully or the device is a root level device. It returns
     CL_INVALID_DEVICE if the <device> is not a valid device.
     *)
-    TclReleaseDeviceEXT* = PROCEDURE {WINAPI} ( device: CL.cl_device_id ): CL.cl_int;
+    TclReleaseDeviceEXT* = PROCEDURE {PlatformCC} ( device: CL.cl_device_id ): CL.cl_int;
 VAR
     ReleaseDeviceEXT- : TclReleaseDeviceEXT;
     (*
@@ -210,7 +210,7 @@ VAR
     a reference count should be themselves responsible for releasing it.
     *)
 TYPE
-    TclRetainDeviceEXT* = PROCEDURE {WINAPI}( device: CL.cl_device_id (*device*)): CL.cl_int;
+    TclRetainDeviceEXT* = PROCEDURE {PlatformCC}( device: CL.cl_device_id (*device*)): CL.cl_int;
 
 VAR
     RetainDeviceEXT- : TclRetainDeviceEXT;
@@ -384,7 +384,7 @@ TYPE
         not a device in context.
     *)
 
-     TclCreateSubDevicesEXT* = PROCEDURE {WINAPI}(
+     TclCreateSubDevicesEXT* = PROCEDURE {PlatformCC}(
                             in_device: CL.cl_device_id; (*in_device*)
                             properties: ADDRESS; (* ARRAY OF cl_device_partition_property_ext *)
                             num_entries: CL.cl_uint; (*num_entries*)
@@ -565,7 +565,7 @@ CONST
     CL_COMMAND_MIGRATE_MEM_OBJECT_EXT* = 4040H;
 
 TYPE
-	TclEnqueueMigrateMemObjectEXT* = PROCEDURE {WINAPI}(
+	TclEnqueueMigrateMemObjectEXT* = PROCEDURE {PlatformCC}(
                                   command_queue: CL.cl_command_queue;
                                   num_mem_objects: CL.cl_uint;
                                   mem_objects: ADDRESS; (* ARRAY OF CL.cl_mem *)
@@ -577,7 +577,6 @@ TYPE
 
 VAR
     EnqueueMigrateMemObjectEXT-: TclEnqueueMigrateMemObjectEXT;
-
 (* ENDIF *)
 
 (* wrapper procedure for CL.GetExtensionFunctionAddress *)

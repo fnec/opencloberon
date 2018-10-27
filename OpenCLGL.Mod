@@ -43,13 +43,13 @@ CONST
 
 TYPE
 	(* VERSION_1_0 *)
-	TclCreateFromGLBuffer* =  PROCEDURE {C} (context: cl_context;
+	TclCreateFromGLBuffer* =  PROCEDURE {PlatformCC} (context: cl_context;
                      flags: cl_mem_flags;
                      bufobj: cl_GLuint;
                      VAR errcode_ret: cl_int): cl_mem;
 
 	(* VERSION_1_2 *)
-	TclCreateFromGLTexture* = PROCEDURE {C} (context: cl_context;
+	TclCreateFromGLTexture* = PROCEDURE {PlatformCC} (context: cl_context;
                       flags: cl_mem_flags;
                       target: cl_GLenum;
                       miplevel: cl_GLint;
@@ -57,25 +57,25 @@ TYPE
                       VAR errcode_ret: cl_int): cl_mem;
 
 	(* VERSION_1_0 *)
-	TclCreateFromGLRenderbuffer* = PROCEDURE {C} (context: cl_context;
+	TclCreateFromGLRenderbuffer* = PROCEDURE {PlatformCC} (context: cl_context;
                            flags: cl_mem_flags;
                            renderbuffer: cl_GLuint;
                            VAR errcode_ret: cl_int ): cl_mem;
 
 	(* VERSION_1_0 *)
-	TclGetGLObjectInfo =  PROCEDURE {C} (memobj: cl_mem;
+	TclGetGLObjectInfo =  PROCEDURE {PlatformCC} (memobj: cl_mem;
                   VAR gl_object_type: cl_gl_object_type;
                   VAR gl_object_name: cl_GLuint): cl_int;
 
 	(* VERSION_1_0 *)
-	TclGetGLTextureInfo* =  PROCEDURE {C} (memobj: cl_mem;
+	TclGetGLTextureInfo* =  PROCEDURE {PlatformCC} (memobj: cl_mem;
                    param_name: cl_gl_texture_info;
                    param_value_size: size_t;
                    param_value: ADDRESS;
                    param_value_size_ret: ADDRESS (* size_t *)): cl_int;
 
 	(* VERSION_1_0 *)
-	TclEnqueueAcquireGLObjects* = PROCEDURE {C} (command_queue: cl_command_queue;
+	TclEnqueueAcquireGLObjects* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue;
                           num_objects: cl_uint;
                           mem_objects: ADDRESS (*cl_mem*);
                           num_events_in_wait_list: cl_uint;
@@ -83,7 +83,7 @@ TYPE
                           event: ADDRESS (*cl_event*)): cl_int;
 
 	(* VERSION_1_0 *)
-	TclEnqueueReleaseGLObjects* = PROCEDURE {C} (command_queue: cl_command_queue;
+	TclEnqueueReleaseGLObjects* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue;
                           num_objects: cl_uint;
                           mem_objects: ADDRESS (*cl_mem*);
                           num_events_in_wait_list: cl_uint;
@@ -93,7 +93,7 @@ TYPE
 
 	(*! warning CL_USE_DEPRECATED_OPENCL_1_1_APIS is defined. These APIs are unsupported and untested in OpenCL 1.2! *)
 	(* DEPRECATED_1_1 *)
-	TclCreateFromGLTexture2D* = PROCEDURE {C} (context: cl_context;
+	TclCreateFromGLTexture2D* = PROCEDURE {PlatformCC} (context: cl_context;
                             flags: cl_mem_flags;
                             target: cl_GLenum;
                             miplevel: cl_GLint;
@@ -101,7 +101,7 @@ TYPE
                             VAR errcode_ret: cl_int):cl_mem;
 
 	(* DEPRECATED_1_1 *)
-	TclCreateFromGLTexture3D* =  PROCEDURE {C} (context: cl_context;
+	TclCreateFromGLTexture3D* =  PROCEDURE {PlatformCC} (context: cl_context;
                             flags: cl_mem_flags;
                             target: cl_GLenum;
                             miplevel: cl_GLint;
@@ -133,7 +133,7 @@ CONST
 
 
 TYPE
-	TclGetGLContextInfoKHR* = PROCEDURE {C} (properties: ADDRESS (*cl_context_properties*);
+	TclGetGLContextInfoKHR* = PROCEDURE {PlatformCC} (properties: ADDRESS (*cl_context_properties*);
                       param_name: cl_gl_context_info;
                       param_value_size: size_t;
                       param_value: ADDRESS;

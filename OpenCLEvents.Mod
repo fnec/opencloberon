@@ -10,33 +10,30 @@ VAR
 
 (* c[i] := a[i] + b[i] *)
 PROCEDURE MyProgramSource0():Strings.String;
-VAR sw: Streams.StringWriter;
+VAR
       buf: Strings.String;
 BEGIN
- NEW(sw,1024);
- sw.String(" __kernel void vectorAdd(__global const float* a, __global const float* b, __global float* c)"); sw.Ln;
- sw.String("  { "); 								sw.Ln;
- sw.String("    int i  = get_global_id(0);"); 	sw.Ln;
- sw.String("     c[i] = a[i] + b[i];"); 			sw.Ln;
- sw.String("  }"); 								sw.Ln;
- NEW(buf, sw.Pos());
- sw.Get(buf^);
+ NEW(buf,1024);
+buf^ := " __kernel void vectorAdd(__global const float* a, __global const float* b, __global float* c)
+  { 
+    int i  = get_global_id(0);
+     c[i] = a[i] + b[i];
+  }";
+  
  RETURN buf
 END MyProgramSource0;
 
 (* c[i] := a[i] .* b[i] *)
 PROCEDURE MyProgramSource1():Strings.String;
-VAR sw: Streams.StringWriter;
+VAR 
       buf: Strings.String;
 BEGIN
- NEW(sw,1024);
- sw.String(" __kernel void vectorMul(__global const float* a, __global const float* b, __global float* c)"); sw.Ln;
- sw.String("  { "); 								sw.Ln;
- sw.String("    int i  = get_global_id(0);"); 	sw.Ln;
- sw.String("     c[i] = a[i] * b[i];"); 			sw.Ln;
- sw.String("  }"); 								sw.Ln;
- NEW(buf, sw.Pos());
- sw.Get(buf^);
+ NEW(buf,1024);
+buf^ :=" __kernel void vectorMul(__global const float* a, __global const float* b, __global float* c)
+  {
+    int i  = get_global_id(0);
+     c[i] = a[i] * b[i];
+  }"; 	
  RETURN buf
 END MyProgramSource1;
 
@@ -186,18 +183,16 @@ BEGIN
  	(* ******** Create programs ************ *)
 
 	progsource0 := MyProgramSource0();
-	adr := ADDRESSOF(progsource0^[0]);
-	prog0 := CL.CreateProgramWithSource(context, 1, ADDRESSOF(adr), 0, err);
-	wr.String("clCreateProgramWithSource-0 : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
+	prog0 := Utils.CreateProgramWithSource(context, progsource0^,  err);
+	wr.String("Utils.CreateProgramWithSource-0 : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF prog0 = 0 THEN
 		wr.String("prog0 NIL: "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 		RETURN
 	END;
 
 	progsource1 := MyProgramSource1();
-	adr := ADDRESSOF(progsource1^[0]);
-	prog1 := CL.CreateProgramWithSource(context, 1, ADDRESSOF(adr), 0, err);
-	wr.String("clCreateProgramWithSource-1 : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
+	prog1 := Utils.CreateProgramWithSource(context, progsource1^, err);
+	wr.String("Utils.CreateProgramWithSource-1 : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF prog1 = 0 THEN
 		wr.String("prog1 NIL: "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 		RETURN
@@ -361,8 +356,8 @@ BEGIN
 	Streams.OpenWriter(wr, KernelLog.Send);
 END OpenCLEvents.
 
-SystemTools.Free OpenCLEvents ~
+System.Free OpenCLEvents ~
 
-SystemTools.FreeDownTo OpenCL ~
+System.FreeDownTo OpenCL ~
 
 OpenCLEvents.Test ~

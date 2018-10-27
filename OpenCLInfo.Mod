@@ -3,7 +3,7 @@ MODULE OpenCLInfo; (** AUTHOR "fnecati"; PURPOSE "Prints OpenCL properties of GP
 IMPORT CL:=OpenCL, S:=SYSTEM, KernelLog, Streams, Strings, Utils:=OpenCLUtils;
 
 TYPE
-	Int3Array = ARRAY 3 OF LONGINT;
+	Int3Array = ARRAY 3 OF CL.size_t;
 
 VAR
 	wr: Streams.Writer;
@@ -19,11 +19,13 @@ VAR i, j, k: LONGINT;
 	context : CL.cl_context;
 	buf  :  ARRAY 1024 OF  CHAR;
 	(* bufwritten: LONGINT;*)
-	computeunits: LONGINT;
+	computeunits: CL.cl_uint;
 	dumy: LONGINT;
+	udumy: CL.cl_uint;
+	sdumy: CL.size_t;
 	hdumy: HUGEINT;
 
-	memsize: HUGEINT;
+	memsize: CL.cl_ulong;
 	devtype: HUGEINT; (* CL.cl_bitfield *)
 	workitemsize: Int3Array;
 	nv_extension_query: BOOLEAN;
@@ -120,43 +122,43 @@ BEGIN
 			END;
 			wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_COMPUTE_UNITS, SIZEOF(LONGINT), ADDRESSOF(computeunits), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_COMPUTE_UNITS, SIZEOF(CL.cl_uint), ADDRESSOF(computeunits), 0);
 			wr.String("DEVICE_MAX_COMPUTE_UNITS: "); wr.Int(computeunits,0); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_ITEM_DIMENSIONS, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("DEVICE_MAX_WORK_ITEM_DIMENSIONS: "); wr.Int(dumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_ITEM_DIMENSIONS, SIZEOF(CL.cl_uint), ADDRESSOF(udumy), 0);
+			wr.String("DEVICE_MAX_WORK_ITEM_DIMENSIONS: "); wr.Int(udumy,0); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_ITEM_SIZES,  SIZEOF(Int3Array), ADDRESSOF(workitemsize), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_ITEM_SIZES,  SIZEOF(Int3Array), ADDRESSOF(workitemsize[0]), 0);
 			wr.String("DEVICE_MAX_WORK_ITEM_SIZES: "); wr.Int(workitemsize[0],5); wr.String(" x "); wr.Int(workitemsize[1],0);  wr.String(" x "); wr.Int(workitemsize[2],0); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_GROUP_SIZE, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("DEVICE_MAX_WORK_GROUP_SIZE: "); wr.Int(dumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WORK_GROUP_SIZE, SIZEOF(CL.size_t), ADDRESSOF(sdumy), 0);
+			wr.String("DEVICE_MAX_WORK_GROUP_SIZE: "); wr.Int(sdumy,0); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CLOCK_FREQUENCY, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("DEVICE_MAX_CLOCK_FREQUENCY: "); wr.Int(dumy,0); wr.String(" MHz"); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CLOCK_FREQUENCY, SIZEOF(CL.cl_uint), ADDRESSOF(udumy), 0);
+			wr.String("DEVICE_MAX_CLOCK_FREQUENCY: "); wr.Int(udumy,0); wr.String(" MHz"); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_ADDRESS_BITS, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("DEVICE_ADDRESS_BITS: "); wr.Int(dumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_ADDRESS_BITS, SIZEOF(CL.cl_uint), ADDRESSOF(udumy), 0);
+			wr.String("DEVICE_ADDRESS_BITS: "); wr.Int(udumy,0); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_MEM_ALLOC_SIZE, SIZEOF(HUGEINT), ADDRESSOF(memsize), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_MEM_ALLOC_SIZE, SIZEOF(CL.cl_ulong), ADDRESSOF(memsize), 0);
 			wr.String("DEVICE_MAX_MEM_ALLOC_SIZE: "); wr.Int( memsize DIV (1024*1024), 0); wr.String(" MByte"); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_GLOBAL_MEM_SIZE, SIZEOF(HUGEINT), ADDRESSOF(memsize), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_GLOBAL_MEM_SIZE, SIZEOF(CL.cl_ulong), ADDRESSOF(memsize), 0);
 			wr.String("DEVICE_GLOBAL_MEM_SIZE: "); wr.Int( memsize DIV (1024*1024), 0); wr.String(" MByte"); wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_ERROR_CORRECTION_SUPPORT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
 			wr.String("DEVICE_ERROR_CORRECTION_SUPPORT: "); IF dumy = CL.CL_FALSE THEN wr.String(" no"); ELSE wr.String(" yes"); END; wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_TYPE, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("DEVICE_LOCAL_MEM_TYPE: "); IF dumy = CL.CL_TRUE THEN wr.String(" local"); ELSE wr.String(" global"); END; wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_TYPE, SIZEOF(CL.cl_uint), ADDRESSOF(udumy), 0);
+			wr.String("DEVICE_LOCAL_MEM_TYPE: "); IF udumy = CL.CL_TRUE THEN wr.String(" local"); ELSE wr.String(" global"); END; wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_SIZE,  SIZEOF(HUGEINT), ADDRESSOF(memsize), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_SIZE,  SIZEOF(CL.cl_ulong), ADDRESSOF(memsize), 0);
 			wr.String("DEVICE_LOCAL_MEM_SIZE: "); wr.Int(memsize DIV 1024 , 0); wr.String(" KByte");  wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CONSTANT_BUFFER_SIZE, SIZEOF(HUGEINT), ADDRESSOF(memsize), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CONSTANT_BUFFER_SIZE, SIZEOF(CL.cl_ulong), ADDRESSOF(memsize), 0);
 			wr.String("DEVICE_MAX_CONSTANT_BUFFER_SIZE: "); wr.Int( memsize DIV 1024, 0);  wr.String(" KByte");  wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_QUEUE_PROPERTIES, SIZEOF(HUGEINT), ADDRESSOF(hdumy), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_QUEUE_PROPERTIES, SIZEOF(CL.cl_bitfield), ADDRESSOF(hdumy), 0);
 
 			IF CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE IN S.VAL(SET,hdumy)  THEN wr.String("DEVICE_QUEUE_PROPERTIES: QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE"); END; wr.Ln;
 			IF CL.QUEUE_PROFILING_ENABLE IN S.VAL(SET,hdumy) THEN wr.String("DEVICE_QUEUE_PROPERTIES: QUEUE_PROFILING_ENABLE"); END; wr.Ln;
@@ -164,13 +166,13 @@ BEGIN
 			err:= CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE_SUPPORT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
 			wr.String("DEVICE_MAGE_SUPPORT: "); IF dumy=1 THEN wr.String(" true"); ELSE wr.String(" false"); END; wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_READ_IMAGE_ARGS, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("DEVICE_MAX_READ_IMAGE_ARGS: "); wr.Int(dumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_READ_IMAGE_ARGS, SIZEOF(CL.cl_uint), ADDRESSOF(udumy), 0);
+			wr.String("DEVICE_MAX_READ_IMAGE_ARGS: "); wr.Int(udumy,0); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WRITE_IMAGE_ARGS, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("DEVICE_MAX_WRITE_IMAGE_ARGS: "); wr.Int(dumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_WRITE_IMAGE_ARGS, SIZEOF(CL.cl_uint), ADDRESSOF(udumy), 0);
+			wr.String("DEVICE_MAX_WRITE_IMAGE_ARGS: "); wr.Int(udumy,0); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_SINGLE_FP_CONFIG, SIZEOF(HUGEINT), ADDRESSOF(hdumy), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_SINGLE_FP_CONFIG, SIZEOF(CL.cl_bitfield), ADDRESSOF(hdumy), 0);
 			wr.String("DEVICE_SINGLE_FP_CONFIG: ");
 			IF CL.FP_DENORM IN S.VAL(SET,hdumy)  THEN wr.String(" denorms  "); END;
 			IF CL.FP_INF_NAN IN S.VAL(SET,hdumy)  THEN wr.String(" INF-quietNaNs  "); END;
@@ -180,20 +182,20 @@ BEGIN
 			IF CL.FP_FMA IN S.VAL(SET,hdumy)  THEN wr.String(" fma  "); END;
 			wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_WIDTH, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_WIDTH, SIZEOF(CL.size_t), ADDRESSOF(sdumy), 0);
 			wr.String("DEVICE_IMAGE <dim> "); wr.Ln;
-			wr.String("     IMAGE2D_MAX_WIDTH: "); wr.Int(dumy,0); wr.Ln;
+			wr.String("     IMAGE2D_MAX_WIDTH: "); wr.Int(sdumy,0); wr.Ln;
 			
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_HEIGHT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("     IMAGE2D_MAX_HEIGHT: "); wr.Int(dumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_HEIGHT, SIZEOF(CL.size_t), ADDRESSOF(sdumy), 0);
+			wr.String("     IMAGE2D_MAX_HEIGHT: "); wr.Int(sdumy,0); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_WIDTH, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("     IMAGE3D_MAX_WIDTH: "); wr.Int(dumy,0); wr.Ln;
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_HEIGHT, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-	             wr.String("     IMAGE3D_MAX_HEIGHT: "); wr.Int(dumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_WIDTH, SIZEOF(CL.size_t), ADDRESSOF(sdumy), 0);
+			wr.String("     IMAGE3D_MAX_WIDTH: "); wr.Int(sdumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_HEIGHT, SIZEOF(CL.size_t), ADDRESSOF(sdumy), 0);
+	             wr.String("     IMAGE3D_MAX_HEIGHT: "); wr.Int(sdumy,0); wr.Ln;
 			
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_DEPTH, SIZEOF(LONGINT), ADDRESSOF(dumy), 0);
-			wr.String("     IMAGE3D_MAX_DEPTH: "); wr.Int(dumy,0); wr.Ln;
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE3D_MAX_DEPTH, SIZEOF(CL.size_t), ADDRESSOF(sdumy), 0);
+			wr.String("     IMAGE3D_MAX_DEPTH: "); wr.Int(sdumy,0); wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_EXTENSIONS, LEN(buf), ADDRESSOF(buf[0]), 0);
 			wr.String("DEVICE EXTENSIONS: "); wr.String(buf); wr.Ln;
@@ -322,9 +324,9 @@ BEGIN
 	Streams.OpenWriter(wr, KernelLog.Send);
 END OpenCLInfo.
 
-SystemTools.Free OpenCLInfo ~
+System.Free OpenCLInfo ~
 
-SystemTools.FreeDownTo OpenCL ~
+System.FreeDownTo OpenCL ~
 
 
 OpenCLInfo.Show ~

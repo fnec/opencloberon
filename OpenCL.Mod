@@ -1,5 +1,5 @@
 MODULE OpenCL; (** AUTHOR "fnecati"; PURPOSE "OpenCL 1.0, 1.1, 1.2, 2.0 binding library for LinuxAos"; *)
-IMPORT Unix,  Modules, KernelLog;
+IMPORT Modules, HostLibs, KernelLog;
 
 (* ******************************************************************************
  * Copyright (c) 2008 - 2013 The Khronos Group Inc.
@@ -25,9 +25,15 @@ IMPORT Unix,  Modules, KernelLog;
  ***************************************************************************** *)
 
 CONST
+ #IF UNIX THEN
 	libname = "libOpenCL.so.1";
 	debug* = TRUE;
-
+ #ELSIF WIN THEN
+ 	libname = "OpenCL.dll";
+ #ELSE
+   UNIMPLEMENTED
+ #END
+ 
 (* Use OpenCL Version *)
 (*	VERSION_1_0* = TRUE;
 	VERSION_1_1* = TRUE;
@@ -36,7 +42,7 @@ CONST
 *)
 	
 VAR
-	 oclib- : ADDRESS; (* handle to library *)
+	 oclib- : HostLibs.LibHandle;  (* handle to library *)
 
 TYPE
 	size_t* = SIZE;
@@ -52,7 +58,7 @@ TYPE
 	cl_int* = LONGINT; (*-2147483647..+2147483648;  *)
 	cl_uint* = UNSIGNED32;  (* 0..4294967295;  *)
 	cl_long* = HUGEINT; (* Int64;// 0..184467440773709551615;//-$8000000000000001..+$8000000000000000{9223372036854775808}; //typedef signed   __int64  cl_long; *)
-	cl_ulong* = UNSIGNED64;
+	cl_ulong* = HUGEINT; (* UNSIGNED64; *)
 
 	cl_half* = INTEGER;
 	cl_float* = REAL;
@@ -755,9 +761,9 @@ CONST
 	(* Additional Error Codes  *)
 	PLATFORM_NOT_FOUND_KHR* =  -1001;
 
-TYPE TIcdGetPlatformIDsKHRfn* =  PROCEDURE {C} (num_entries: cl_uint; platforms: cl_platform_id; VAR num_platforms: cl_uint): cl_int;
+TYPE TIcdGetPlatformIDsKHRfn* =  PROCEDURE {PlatformCC} (num_entries: cl_uint; platforms: cl_platform_id; VAR num_platforms: cl_uint): cl_int;
 
-VAR IcdGetPlatformIDsKHR-: PROCEDURE {C}(num_entries: cl_uint;  platforms:  cl_platform_id;  VAR num_platforms: cl_uint): cl_int;
+VAR IcdGetPlatformIDsKHR-: PROCEDURE {PlatformCC}(num_entries: cl_uint;  platforms:  cl_platform_id;  VAR num_platforms: cl_uint): cl_int;
 
 CONST
 	(* cl_nv_device_attribute_query extension - no extension #define since it has no functions *)
@@ -783,32 +789,32 @@ TYPE
 
 	(*! Platform APIs *)
 	(* VERSION_1_0 *)
-	TGetPlatformIDs* = PROCEDURE {C} (  num_entries   : cl_uint;     platforms     : ADDRESS;   num_platforms : ADDRESS): cl_int;
-	TGetPlatformInfo* =  PROCEDURE {C} ( iplatform : cl_platform_id;  param_name : cl_platform_info;  value_size : size_t;  value  : ADDRESS;  size_ret : ADDRESS (* size_t *)  ): cl_int;
+	TGetPlatformIDs* = PROCEDURE {PlatformCC} (  num_entries   : cl_uint;     platforms     : ADDRESS;   num_platforms : ADDRESS): cl_int;
+	TGetPlatformInfo* =  PROCEDURE {PlatformCC} ( iplatform : cl_platform_id;  param_name : cl_platform_info;  value_size : size_t;  value  : ADDRESS;  size_ret : ADDRESS (* size_t *)  ): cl_int;
 
 	(*!  Device APIs *)
-	TGetDeviceIDs* = PROCEDURE {C} ( iplatform :  cl_platform_id ; device_type: cl_device_type; num_entries: cl_uint; devices : ADDRESS;    num_devices :  ADDRESS): cl_int;
-	TGetDeviceInfo* = PROCEDURE {C} (device: cl_device_id; param_name: cl_device_info; value_size: size_t; param_value: ADDRESS; size_ret : ADDRESS (* size_t *)): cl_int;
+	TGetDeviceIDs* = PROCEDURE {PlatformCC} ( iplatform :  cl_platform_id ; device_type: cl_device_type; num_entries: cl_uint; devices : ADDRESS;    num_devices :  ADDRESS): cl_int;
+	TGetDeviceInfo* = PROCEDURE {PlatformCC} (device: cl_device_id; param_name: cl_device_info; value_size: size_t; param_value: ADDRESS; size_ret : ADDRESS (* size_t *)): cl_int;
 
 
 	(* VERSION_1_2 *)
-	TCreateSubDevices* = PROCEDURE {C} (in_device: cl_device_id; properties: cl_device_partition_property;
+	TCreateSubDevices* = PROCEDURE {PlatformCC} (in_device: cl_device_id; properties: cl_device_partition_property;
 			num_devices: cl_uint;
 			out_devices: ADDRESS (* cl_device_id*);
 			VAR num_devices_ret: cl_uint ): cl_int;
 
-	TRetainDevice* = PROCEDURE {C} (device: cl_device_id) : cl_int;
-	TReleaseDevice* = PROCEDURE {C}(device: cl_device_id): cl_int;
+	TRetainDevice* = PROCEDURE {PlatformCC} (device: cl_device_id) : cl_int;
+	TReleaseDevice* = PROCEDURE {PlatformCC}(device: cl_device_id): cl_int;
 
 
 	(*!  Context APIs *)
 
-	TContextNotifyProc* = PROCEDURE {C} (CONST name: ARRAY OF CHAR; data: ADDRESS; size: size_t; data2: ADDRESS);
+	TContextNotifyProc* = PROCEDURE {PlatformCC} (CONST name: ARRAY OF CHAR; data: ADDRESS; size: size_t; data2: ADDRESS);
 
 	(* VERSION_1_0 *)
-	TCreateContext* = PROCEDURE {C}(  properties : ADDRESS (*Pcl_context_properties*) ; num_devices  : cl_uint;  devices : ADDRESS;  pfn_notify : TContextNotifyProc; user_data: ADDRESS; VAR errcode_ret: cl_int): cl_context;
+	TCreateContext* = PROCEDURE {PlatformCC}(  properties : ADDRESS (*Pcl_context_properties*) ; num_devices  : cl_uint;  devices : ADDRESS;  pfn_notify : TContextNotifyProc; user_data: ADDRESS; VAR errcode_ret: cl_int): cl_context;
 
-	TCreateContextFromType* = PROCEDURE {C} (
+	TCreateContextFromType* = PROCEDURE {PlatformCC} (
 			properties      : ADDRESS; (*Pcl_context_properties *)
 			device_type     : cl_device_type;
 			pf_notify          : TContextNotifyProc;
@@ -816,11 +822,11 @@ TYPE
 			VAR errcode_ret :  cl_int
 			): cl_context;
 
-	TRetainContext * = PROCEDURE {C} (context: cl_context): cl_int;
+	TRetainContext * = PROCEDURE {PlatformCC} (context: cl_context): cl_int;
 
-	TReleaseContext * = PROCEDURE {C} (context: cl_context): cl_int;
+	TReleaseContext * = PROCEDURE {PlatformCC} (context: cl_context): cl_int;
 
-	TGetContextInfo* = PROCEDURE {C}(
+	TGetContextInfo* = PROCEDURE {PlatformCC}(
 			context       : cl_context;
 			param_name    : cl_context_info;
 			param_value_size    : size_t;
@@ -830,18 +836,18 @@ TYPE
 
 	(*!  Command Queue APIs *)
 	(* VERSION_2_0; *)
-	TCreateCommandQueueWithProperties* = PROCEDURE {C} (context: cl_context;
+	TCreateCommandQueueWithProperties* = PROCEDURE {PlatformCC} (context: cl_context;
                                    device: cl_device_id;
                                    properties: cl_queue_properties;
                                    VAR errcode_ret: cl_int): cl_command_queue; 
 
 	(* Deprecated OpenCL 2.0 APIs *)
-	TCreateCommandQueue* = PROCEDURE {C}( context : cl_context;  device : cl_device_id;  properties : cl_command_queue_properties ;  VAR errcode_ret:  cl_int ): cl_command_queue;
+	TCreateCommandQueue* = PROCEDURE {PlatformCC}( context : cl_context;  device : cl_device_id;  properties : cl_command_queue_properties ;  VAR errcode_ret:  cl_int ): cl_command_queue;
 
-	TRetainCommandQueue* = PROCEDURE {C} (command_queue : cl_command_queue): cl_int;
-	TReleaseCommandQueue* = PROCEDURE {C} (command_queue : cl_command_queue): cl_int;
+	TRetainCommandQueue* = PROCEDURE {PlatformCC} (command_queue : cl_command_queue): cl_int;
+	TReleaseCommandQueue* = PROCEDURE {PlatformCC} (command_queue : cl_command_queue): cl_int;
 
-	TGetCommandQueueInfo* = PROCEDURE {C}(
+	TGetCommandQueueInfo* = PROCEDURE {PlatformCC}(
 			command_queue: cl_command_queue;
 			param_name   : cl_command_queue_info;
 			param_value_size   : size_t;
@@ -851,18 +857,18 @@ TYPE
 
 
 	(*!  Memory Object APIs *)
-	TCreateBuffer* = PROCEDURE {C}(context : cl_context;  flags : cl_mem_flags; size : size_t; host_ptr : ADDRESS;  VAR errcode_ret	: cl_int): cl_mem;
+	TCreateBuffer* = PROCEDURE {PlatformCC}(context : cl_context;  flags : cl_mem_flags; size : size_t; host_ptr : ADDRESS;  VAR errcode_ret	: cl_int): cl_mem;
 
 
 	(*VERSION_1_1*)
-	TCreateSubBuffer* = PROCEDURE {C} ( buffer: cl_mem;
+	TCreateSubBuffer* = PROCEDURE {PlatformCC} ( buffer: cl_mem;
 			flags: cl_mem_flags;
 			buffer_create_type: cl_buffer_create_type;
 			buffer_create_info: ADDRESS;
 			VAR errcode_ret: cl_int): cl_mem;
 
 	(*  VERSION_1_2 *)
-	TCreateImage* = PROCEDURE {C} (context: cl_context;
+	TCreateImage* = PROCEDURE {PlatformCC} (context: cl_context;
 			flags: cl_mem_flags;
 			image_format: cl_image_format;
 			image_desc: cl_image_desc;
@@ -870,7 +876,7 @@ TYPE
 			VAR errcode_ret: cl_int): cl_mem;
 
 	(* VERSION_2_0 *)
-	TCreatePipe* = PROCEDURE {C}(context: cl_context;
+	TCreatePipe* = PROCEDURE {PlatformCC}(context: cl_context;
              flags: cl_mem_flags;
              pipe_packet_size: cl_uint;
              pipe_max_packets: cl_uint;
@@ -878,19 +884,19 @@ TYPE
              VAR errcode_ret: cl_int): cl_mem;
 
 	(* VERSION_1_0 *)
-	TRetainMemObject* = PROCEDURE {C} (memobj: cl_mem): cl_int;
-	TReleaseMemObject* = PROCEDURE {C} (memobj: cl_mem): cl_int;
+	TRetainMemObject* = PROCEDURE {PlatformCC} (memobj: cl_mem): cl_int;
+	TReleaseMemObject* = PROCEDURE {PlatformCC} (memobj: cl_mem): cl_int;
 
-	TGetSupportedImageFormats* = PROCEDURE {C}(
+	TGetSupportedImageFormats* = PROCEDURE {PlatformCC}(
 			context		    	: cl_context;
 			flags 			    : cl_mem_flags;
 			image_type 		  : cl_mem_object_type;
 			num_entries 		: cl_uint;
 			image_formats   : ADDRESS; (* Pcl_image_format *)
-			num_image_formats : cl_uint
+			num_image_formats : ADDRESS (*cl_uint*)
 			): cl_int;
 
-	TGetMemObjectInfo* = PROCEDURE {C} (
+	TGetMemObjectInfo* = PROCEDURE {PlatformCC} (
 			image      	: cl_mem;
 			param_name    : cl_mem_info;
 			param_value_size    : size_t;
@@ -898,7 +904,7 @@ TYPE
 			param_value_size_ret  : ADDRESS (* size_t *)
 			): cl_int;
 
-	TGetImageInfo* = PROCEDURE {C}(
+	TGetImageInfo* = PROCEDURE {PlatformCC}(
 			image         : cl_mem;
 			param_name    : cl_image_info;
 			param_value_size  : size_t;
@@ -908,48 +914,48 @@ TYPE
 
 
 	(* VERSION_2_0 *)
-	TGetPipeInfo* = PROCEDURE {C}(pipe: cl_mem;
+	TGetPipeInfo* = PROCEDURE {PlatformCC}(pipe: cl_mem;
 			              param_name: cl_pipe_info;
 			              param_value_size: size_t;
 			              param_value: ADDRESS;
 			              VAR param_value_size_ret: size_t): cl_int;
 
 	(* VERSION_1_1 *)
-	TMemObjectDestructorCallbackProc* = PROCEDURE {C} (memobj: cl_mem; user_data:ADDRESS);
+	TMemObjectDestructorCallbackProc* = PROCEDURE {PlatformCC} (memobj: cl_mem; user_data:ADDRESS);
 
-	TSetMemObjectDestructorCallback* = PROCEDURE {C} (memobj: cl_mem;
+	TSetMemObjectDestructorCallback* = PROCEDURE {PlatformCC} (memobj: cl_mem;
 						pfn_notify: TMemObjectDestructorCallbackProc;
 						user_data: ADDRESS):  cl_int;
 
 	(* SVM Allocation APIs *)
 	(* VERSION_2_0 *)
-	TSVMAlloc* = PROCEDURE {C}(context: cl_context;
+	TSVMAlloc* = PROCEDURE {PlatformCC}(context: cl_context;
 			           flags: cl_svm_mem_flags;
 			           size: size_t;
 			           alignment: cl_uint): ADDRESS;
 
 	(* VERSION_2_0 *)
-	TSVMFree* = PROCEDURE {C}(context: cl_context; svm_pointer: ADDRESS);
+	TSVMFree* = PROCEDURE {PlatformCC}(context: cl_context; svm_pointer: ADDRESS);
     
 	(*!  Sampler APIs *)
 
 	(* VERSION_2_0 *)
-	TCreateSamplerWithProperties* = PROCEDURE {C}(context: cl_context;
+	TCreateSamplerWithProperties* = PROCEDURE {PlatformCC}(context: cl_context;
                               normalized_coords: cl_sampler_properties;
                               VAR errcode_ret: cl_int): cl_sampler;
 
 	(* VERSION_1_0*) (*! VERSION_2_0_DEPRECATED *)  (* Deprecated OpenCL 2.0 APIs *)
-	TCreateSampler* = PROCEDURE {C} (
+	TCreateSampler* = PROCEDURE {PlatformCC} (
 						context: cl_context;
 						normalized_coords: cl_bool;
 						addressing_mode: cl_addressing_mode;
 						filter_mode: cl_filter_mode;
 						VAR errcode_ret:  cl_int): cl_sampler;
 
-	TRetainSampler* = PROCEDURE {C} (sampler: cl_sampler): cl_int;
-	TReleaseSampler* = PROCEDURE {C} (sampler: cl_sampler): cl_int;
+	TRetainSampler* = PROCEDURE {PlatformCC} (sampler: cl_sampler): cl_int;
+	TReleaseSampler* = PROCEDURE {PlatformCC} (sampler: cl_sampler): cl_int;
 
-	TGetSamplerInfo* = PROCEDURE {C}(
+	TGetSamplerInfo* = PROCEDURE {PlatformCC}(
 						sampler: cl_sampler;
 						param_name: cl_sampler_info;
 						param_value_size: size_t;
@@ -959,13 +965,13 @@ TYPE
 
 
 	(*!  Program Object APIs *)
-	TCreateProgramWithSource* = PROCEDURE {C}( context  : cl_context;  count  : cl_uint; strings : ADDRESS; lengths  : ADDRESS (*Psize_t*);   VAR errcode_ret :  cl_int  ): cl_program;
+	TCreateProgramWithSource* = PROCEDURE {PlatformCC}( context  : cl_context;  count  : cl_uint; strings : ADDRESS; lengths  : ADDRESS (*Psize_t*);   VAR errcode_ret :  cl_int  ): cl_program;
 
 (*	PByte* = POINTER TO ARRAY OF CHAR;
 	PPByte* = POINTER TO ARRAY OF PByte;
 *)
 
-	TCreateProgramWithBinary* = PROCEDURE {C} (
+	TCreateProgramWithBinary* = PROCEDURE {PlatformCC} (
 			context     : cl_context;
 			num_devices : cl_uint;
 			device_list : ADDRESS; (*Pcl_device_id *)
@@ -976,7 +982,7 @@ TYPE
 			): cl_program;
 
 	(* VERSION_1_2 *)
-	TCreateProgramWithBuiltInKernels* = PROCEDURE {C}(context: cl_context;
+	TCreateProgramWithBuiltInKernels* = PROCEDURE {PlatformCC}(context: cl_context;
 			num_devices: cl_uint;
 			device_list: cl_device_id;
 			kernel_names: ADDRESS;
@@ -984,15 +990,15 @@ TYPE
 			):cl_program;
 
 	(* VERSION_1_0 *)
-	TRetainProgram* = PROCEDURE {C} (iprogram: cl_program): cl_int;
-	TReleaseProgram* = PROCEDURE {C} (iprogram: cl_program): cl_int;
+	TRetainProgram* = PROCEDURE {PlatformCC} (iprogram: cl_program): cl_int;
+	TReleaseProgram* = PROCEDURE {PlatformCC} (iprogram: cl_program): cl_int;
 
-	TProgramNotifyProc* =  PROCEDURE {C} (iprogram: cl_program; user_data: ADDRESS);
+	TProgramNotifyProc* =  PROCEDURE {PlatformCC} (iprogram: cl_program; user_data: ADDRESS);
 
-	TBuildProgram* = PROCEDURE {C} (iprogram: cl_program; num_devices:  cl_uint;  device_list: ADDRESS; CONST options: ARRAY OF CHAR; notify: ADDRESS (*TProgramNotify*);  user_data: ADDRESS ): cl_int;
+	TBuildProgram* = PROCEDURE {PlatformCC} (iprogram: cl_program; num_devices:  cl_uint;  device_list: ADDRESS; CONST options: ARRAY OF CHAR; notify: ADDRESS (*TProgramNotify*);  user_data: ADDRESS ): cl_int;
 
 	(* VERSION_1_2 *)
-	TCompileProgram* = PROCEDURE {C}(program: cl_program;
+	TCompileProgram* = PROCEDURE {PlatformCC}(program: cl_program;
 			num_devices: cl_uint;
 			device_list: ADDRESS (*cl_device_id*);
 			CONST options: ARRAY OF CHAR;
@@ -1002,7 +1008,7 @@ TYPE
 			pfn_notify :TProgramNotifyProc;
  			user_data: ADDRESS): cl_int;
 
-	TLinkProgram* = PROCEDURE {C}(context: cl_context;
+	TLinkProgram* = PROCEDURE {PlatformCC}(context: cl_context;
 			num_devices: cl_uint;
 			device_list: ADDRESS (*cl_device_id*);
 			CONST options: ARRAY OF CHAR;
@@ -1013,10 +1019,10 @@ TYPE
 			VAR errcode_ret: cl_int 
 			): cl_program;
 
-	TUnloadPlatformCompiler* = PROCEDURE {C}(platform: cl_platform_id ): cl_int;
+	TUnloadPlatformCompiler* = PROCEDURE {PlatformCC}(platform: cl_platform_id ): cl_int;
 
 	(* VERSION_1_0*)
-	TGetProgramInfo* = PROCEDURE {C} (
+	TGetProgramInfo* = PROCEDURE {PlatformCC} (
 			iprogram : cl_program;
 			param_name: cl_program_info;
 			param_value_size: size_t;
@@ -1024,7 +1030,7 @@ TYPE
 			param_value_size_ret  : ADDRESS (* size_t *)
 			): cl_int;
 
-	TGetProgramBuildInfo* = PROCEDURE {C} (
+	TGetProgramBuildInfo* = PROCEDURE {PlatformCC} (
 			iprogram      : cl_program;
 			device        : cl_device_id;
 			param_name    : cl_program_build_info;
@@ -1034,26 +1040,26 @@ TYPE
 			): cl_int;
 
 	(*!  Kernel Object APIs *)
-	TCreateKernel* = PROCEDURE {C}(iprogram: cl_program;   CONST kernel_name: ARRAY OF CHAR;   VAR  errcode_ret: cl_int ): cl_kernel;
+	TCreateKernel* = PROCEDURE {PlatformCC}(iprogram: cl_program;   CONST kernel_name: ARRAY OF CHAR;   VAR  errcode_ret: cl_int ): cl_kernel;
 
-	TCreateKernelsInProgram* = PROCEDURE {C} (
+	TCreateKernelsInProgram* = PROCEDURE {PlatformCC} (
 			iprogram      : cl_program;
 			num_kernels   : cl_uint;
 			kernels       : ADDRESS; (*Pcl_kernel *)
 			num_kernels_ret   : ADDRESS (* cl_uint *)
 			): cl_int;
 
-	TRetainKernel* = PROCEDURE {C} (kernel: cl_kernel): cl_int;
-	TReleaseKernel* = PROCEDURE {C} (kernel: cl_kernel): cl_int;
+	TRetainKernel* = PROCEDURE {PlatformCC} (kernel: cl_kernel): cl_int;
+	TReleaseKernel* = PROCEDURE {PlatformCC} (kernel: cl_kernel): cl_int;
 
-	TSetKernelArg* = PROCEDURE {C} (
+	TSetKernelArg* = PROCEDURE {PlatformCC} (
 			kernel    : cl_kernel;
 			arg_index : cl_uint;
 			arg_size  : size_t;
 			arg_value : ADDRESS
 			): cl_int;
 
-	TGetKernelInfo* = PROCEDURE {C} (
+	TGetKernelInfo* = PROCEDURE {PlatformCC} (
 			kernel        : cl_kernel;
 			param_name    : cl_kernel_info;
 			param_value_size    : size_t;
@@ -1063,19 +1069,19 @@ TYPE
 
 
 	(* VERSION_2_0 *)
-	TSetKernelArgSVMPointer* = PROCEDURE {C}(kernel: cl_kernel;
+	TSetKernelArgSVMPointer* = PROCEDURE {PlatformCC}(kernel: cl_kernel;
                          arg_index: cl_uint;
                          arg_value: ADDRESS): cl_int;
 
 
 	(* VERSION_2_0 *)
-	TSetKernelExecInfo* = PROCEDURE {C}(kernel: cl_kernel;
+	TSetKernelExecInfo* = PROCEDURE {PlatformCC}(kernel: cl_kernel;
                     param_name: cl_kernel_exec_info;
                     param_value_size: size_t;
                     param_value: ADDRESS): cl_int;
  
 	(* VERSION_1_2 *)
-	TGetKernelArgInfo* = PROCEDURE {C}(kernel: cl_kernel;
+	TGetKernelArgInfo* = PROCEDURE {PlatformCC}(kernel: cl_kernel;
 			arg_indx: cl_uint;
 			param_name: cl_kernel_arg_info;
 			param_value_size: size_t;
@@ -1083,12 +1089,12 @@ TYPE
 			param_value_size_ret: ADDRESS
 			): cl_int;
 
-	TGetKernelWorkGroupInfo* = PROCEDURE {C}(kernel: cl_kernel; device: cl_device_id; param_name: cl_kernel_work_group_info; value_size: size_t; value: ADDRESS; size_ret : ADDRESS ): cl_int;
+	TGetKernelWorkGroupInfo* = PROCEDURE {PlatformCC}(kernel: cl_kernel; device: cl_device_id; param_name: cl_kernel_work_group_info; value_size: size_t; value: ADDRESS; VAR size_ret : size_t ): cl_int;
 
 	(*!  Event Object APIs *)
-	TWaitForEvents* = PROCEDURE {C} (num_events  : cl_uint; event_list  : ADDRESS ): cl_int;
+	TWaitForEvents* = PROCEDURE {PlatformCC} (num_events  : cl_uint; event_list  : ADDRESS ): cl_int;
 
-	TGetEventInfo* = PROCEDURE {C} (
+	TGetEventInfo* = PROCEDURE {PlatformCC} (
 			event         : cl_event;
 			param_name    : cl_event_info;
 			param_value_size    : size_t;
@@ -1097,24 +1103,24 @@ TYPE
 			): cl_int;
 
 	(* VERSION_1_1 *)
-	TCreateUserEvent* = PROCEDURE {C}(context: cl_context; VAR errcode_ret: cl_int): cl_event;
+	TCreateUserEvent* = PROCEDURE {PlatformCC}(context: cl_context; VAR errcode_ret: cl_int): cl_event;
 
 	(* VERSION_1_0 *)
-	TRetainEvent* = PROCEDURE {C} (event: cl_event): cl_int;
-	TReleaseEvent* = PROCEDURE {C} (event: cl_event): cl_int;
+	TRetainEvent* = PROCEDURE {PlatformCC} (event: cl_event): cl_int;
+	TReleaseEvent* = PROCEDURE {PlatformCC} (event: cl_event): cl_int;
 
 	(* VERSION_1_1 *)
-	TSetUserEventStatus* = PROCEDURE {C}(event: cl_event; execution_status: cl_int): cl_int;
+	TSetUserEventStatus* = PROCEDURE {PlatformCC}(event: cl_event; execution_status: cl_int): cl_int;
 
 	TSetEventCallbackProc* = PROCEDURE (event: cl_event; user_data: ADDRESS);
 
-	TSetEventCallback* = PROCEDURE {C}( event: cl_event;
+	TSetEventCallback* = PROCEDURE {PlatformCC}( event: cl_event;
 			command_exec_callback_type: cl_int;
 			pfn_notify: TSetEventCallbackProc;
 			user_data: ADDRESS): cl_int;
 
 	(*!  Profiling APIs *)
-	TGetEventProfilingInfo * = PROCEDURE {C} (
+	TGetEventProfilingInfo * = PROCEDURE {PlatformCC} (
 			event         : cl_event;
 			param_name    : cl_profiling_info;
 			param_value_size    : size_t;
@@ -1124,11 +1130,11 @@ TYPE
 
 
 	(*!  Flush and Finish APIs *)
-	TFlush * = PROCEDURE {C} (command_queue: cl_command_queue): cl_int;
-	TFinish* = PROCEDURE {C} (command_queue: cl_command_queue): cl_int;
+	TFlush * = PROCEDURE {PlatformCC} (command_queue: cl_command_queue): cl_int;
+	TFinish* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue): cl_int;
 
 	(*!  Enqueued Commands APIs *)
-	TEnqueueReadBuffer* = PROCEDURE {C} (
+	TEnqueueReadBuffer* = PROCEDURE {PlatformCC} (
 			command_queue : cl_command_queue;
 			buffer        : cl_mem;
 			blocking_read : cl_bool;
@@ -1143,7 +1149,7 @@ TYPE
 
 
 	(* VERSION_1_1 *)
-	TEnqueueReadBufferRect * = PROCEDURE {C} (command_queue: cl_command_queue;
+	TEnqueueReadBufferRect * = PROCEDURE {PlatformCC} (command_queue: cl_command_queue;
 			buffer: cl_mem;
 			blocking_read: cl_bool;
 			buffer_offset: ADDRESS (* size_t *);
@@ -1160,7 +1166,7 @@ TYPE
 			):cl_int;
 
 
-	TEnqueueWriteBuffer * = PROCEDURE {C} ( command_queue: cl_command_queue;
+	TEnqueueWriteBuffer * = PROCEDURE {PlatformCC} ( command_queue: cl_command_queue;
 			buffer : cl_mem;
 			blocking_write : cl_bool;
 			offset : size_t;
@@ -1172,7 +1178,7 @@ TYPE
 			): cl_int;
 
 	(* VERSION_1_1*)
-	TEnqueueWriteBufferRect* = PROCEDURE {C} (command_queue: cl_command_queue;
+	TEnqueueWriteBufferRect* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue;
 			buffer: cl_mem;
 			blocking_write: cl_bool;
 			buffer_offset: ADDRESS (*size_t *);
@@ -1188,7 +1194,7 @@ TYPE
 			event: ADDRESS (*cl_event *)
 			): cl_int;
 
-	TEnqueueFillBuffer* = PROCEDURE {C}(command_queue: cl_command_queue;
+	TEnqueueFillBuffer* = PROCEDURE {PlatformCC}(command_queue: cl_command_queue;
 			buffer: cl_mem;
 			pattern: ADDRESS;
 			pattern_size: size_t;
@@ -1199,7 +1205,7 @@ TYPE
 			event: ADDRESS (*cl_event *)
 			): cl_int;
 
-	TEnqueueCopyBuffer* = PROCEDURE {C} (
+	TEnqueueCopyBuffer* = PROCEDURE {PlatformCC} (
 			command_queue : cl_command_queue;
 			src_buffer    : cl_mem;
 			dst_buffer    : cl_mem;
@@ -1211,7 +1217,7 @@ TYPE
 			event: ADDRESS (*Pcl_event *)
 			): cl_int;
 
-	TEnqueueCopyBufferRect* = PROCEDURE {C}(command_queue: cl_command_queue;
+	TEnqueueCopyBufferRect* = PROCEDURE {PlatformCC}(command_queue: cl_command_queue;
 			src_buffer: cl_mem;
 			dst_buffer: cl_mem;
 			src_origin: ADDRESS (* size_t *);
@@ -1226,7 +1232,7 @@ TYPE
 			event: ADDRESS(*cl_event *)
 			): cl_int;
 
-	TEnqueueReadImage * = PROCEDURE {C} (
+	TEnqueueReadImage * = PROCEDURE {PlatformCC} (
 			command_queue : cl_command_queue;
 			image: cl_mem;
 			blocking_read : cl_bool;
@@ -1240,7 +1246,7 @@ TYPE
 			event : ADDRESS (*Pcl_event*)
 			): cl_int;
 
-	TEnqueueWriteImage * = PROCEDURE {C} (
+	TEnqueueWriteImage * = PROCEDURE {PlatformCC} (
 			command_queue   : cl_command_queue;
 			image : cl_mem;
 			blocking_write  : cl_bool;
@@ -1255,7 +1261,7 @@ TYPE
 			): cl_int;
 
 	(* VERSION_1_2 *)
-	TEnqueueFillImage* = PROCEDURE {C} (command_queue: cl_command_queue;
+	TEnqueueFillImage* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue;
 			image: cl_mem;
 			fill_color: ADDRESS;
 			origin: ADDRESS; (* origin[3] *)
@@ -1265,7 +1271,7 @@ TYPE
 			event: ADDRESS (*cl_event *)
 			): cl_int;
 
-	TEnqueueCopyImage* = PROCEDURE {C} (
+	TEnqueueCopyImage* = PROCEDURE {PlatformCC} (
 			command_queue : cl_command_queue;
 			src_image : cl_mem;
 			dst_image: cl_mem;
@@ -1277,7 +1283,7 @@ TYPE
 			event : ADDRESS (*Pcl_event*)
 			): cl_int;
 
-	TEnqueueCopyImageToBuffer* = PROCEDURE {C} (
+	TEnqueueCopyImageToBuffer* = PROCEDURE {PlatformCC} (
 			command_queue : cl_command_queue;
 			src_image     : cl_mem;
 			dst_buffer    : cl_mem;
@@ -1289,7 +1295,7 @@ TYPE
 			event: ADDRESS (*Pcl_event*)
 			): cl_int;
 
-	TEnqueueCopyBufferToImage* = PROCEDURE {C}(
+	TEnqueueCopyBufferToImage* = PROCEDURE {PlatformCC}(
 			command_queue : cl_command_queue;
 			src_buffer    : cl_mem;
 			dst_image     : cl_mem;
@@ -1301,7 +1307,7 @@ TYPE
 			event : ADDRESS (*Pcl_event*)
 			): cl_int;
 
-	TEnqueueMapBuffer* = PROCEDURE {C}(
+	TEnqueueMapBuffer* = PROCEDURE {PlatformCC}(
 			command_queue   : cl_command_queue;
 			buffer          : cl_mem;
 			blocking_map    : cl_bool;
@@ -1314,7 +1320,7 @@ TYPE
 			VAR errcode_ret		: cl_int
 			): ADDRESS;
 
-	TEnqueueMapImage* = PROCEDURE {C}(
+	TEnqueueMapImage* = PROCEDURE {PlatformCC}(
 			command_queue   : cl_command_queue;
 			image           : cl_mem;
 			blocking_map    : cl_bool;
@@ -1329,7 +1335,7 @@ TYPE
 			VAR errcode_ret		: cl_int
 			): ADDRESS;
 
-	TEnqueueUnmapMemObject* = PROCEDURE {C}(
+	TEnqueueUnmapMemObject* = PROCEDURE {PlatformCC}(
 			command_queue : cl_command_queue;
 			memobj        : cl_mem;
 			mapped_ptr    : ADDRESS;
@@ -1339,7 +1345,7 @@ TYPE
 			): cl_int;
 
 	(* VERSION_1_2 *)
-	TEnqueueMigrateMemObjects* = PROCEDURE {C}(command_queue: cl_command_queue;
+	TEnqueueMigrateMemObjects* = PROCEDURE {PlatformCC}(command_queue: cl_command_queue;
 			num_mem_objects: cl_uint;
  			mem_objects: ADDRESS (* cl_mem *);
  			flags: cl_mem_migration_flags;
@@ -1348,7 +1354,7 @@ TYPE
 			event: ADDRESS (*cl_event *)
 			): cl_int;
 
-	TEnqueueNDRangeKernel* = PROCEDURE {C}(
+	TEnqueueNDRangeKernel* = PROCEDURE {PlatformCC}(
 			command_queue : cl_command_queue;
 			kernel        : cl_kernel;
 			work_dim      : cl_uint;
@@ -1361,7 +1367,7 @@ TYPE
 			): cl_int;
 
 	(* VERSION_2_0_DEPRECATED *)
-	TEnqueueTask* = PROCEDURE {C}(
+	TEnqueueTask* = PROCEDURE {PlatformCC}(
 			command_queue : cl_command_queue;
 			kernel        : cl_kernel;
 			num_events_in_wait_list    : cl_uint;
@@ -1369,9 +1375,9 @@ TYPE
 			event           : ADDRESS (*Pcl_event*)
 			): cl_int;
 
-	TEnqueueNativeKernelProc* =  PROCEDURE {C} (userdata: ADDRESS);
+	TEnqueueNativeKernelProc* =  PROCEDURE {PlatformCC} (userdata: ADDRESS);
 
-	TEnqueueNativeKernel* = PROCEDURE {C} (
+	TEnqueueNativeKernel* = PROCEDURE {PlatformCC} (
 			command_queue   : cl_command_queue;
 			user_func       : TEnqueueNativeKernelProc;
 			args            : ADDRESS;
@@ -1385,12 +1391,12 @@ TYPE
 			): cl_int;
 
 	(* VERSION_1_2 *)
-	TEnqueueMarkerWithWaitList* = PROCEDURE {C} (command_queue: cl_command_queue;
+	TEnqueueMarkerWithWaitList* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue;
 			num_events_in_wait_list: cl_uint;
 			event_wait_list: ADDRESS (*cl_event *);
 			event: ADDRESS (*cl_event *)): cl_int;
 
-	TEnqueueBarrierWithWaitList* = PROCEDURE {C} (command_queue: cl_command_queue;
+	TEnqueueBarrierWithWaitList* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue;
 			num_events_in_wait_list: cl_uint;
 			event_wait_list: ADDRESS (*cl_event *);
 			event: ADDRESS (*cl_event *)): cl_int;
@@ -1399,8 +1405,8 @@ TYPE
 
 
 	(* VERSION_2_0 *)
-	TEnqueueSVMFreeProc* = PROCEDURE{C}(queue: cl_command_queue; num_svm_pointers: cl_uint; svm_pointers: ADDRESS; user_data: ADDRESS);
-	TEnqueueSVMFree* = PROCEDURE{C}(command_queue: cl_command_queue;
+	TEnqueueSVMFreeProc* = PROCEDURE{PlatformCC}(queue: cl_command_queue; num_svm_pointers: cl_uint; svm_pointers: ADDRESS; user_data: ADDRESS);
+	TEnqueueSVMFree* = PROCEDURE{PlatformCC}(command_queue: cl_command_queue;
 					num_svm_pointers: cl_uint;
 					svm_pointers: ADDRESS;          (* svm_pointers[] *)
 					pfn_free_func: TEnqueueSVMFreeProc;
@@ -1410,7 +1416,7 @@ TYPE
 					event: ADDRESS): cl_int;
 
 	(* VERSION_2_0 *)
-	TEnqueueSVMMemcpy* = PROCEDURE{C}(command_queue: cl_command_queue;
+	TEnqueueSVMMemcpy* = PROCEDURE{PlatformCC}(command_queue: cl_command_queue;
 					blocking_copy: cl_bool;
 					dst_ptr: ADDRESS;
 					src_ptr: ADDRESS;
@@ -1420,7 +1426,7 @@ TYPE
 					event: cl_event): cl_int;
 
 	(* VERSION_2_0 *)
-	TEnqueueSVMMemFill* = PROCEDURE{C}(command_queue: cl_command_queue;
+	TEnqueueSVMMemFill* = PROCEDURE{PlatformCC}(command_queue: cl_command_queue;
 					svm_ptr: ADDRESS;
 					pattern: ADDRESS;
 					pattern_size: size_t;
@@ -1430,7 +1436,7 @@ TYPE
 					event: ADDRESS): cl_int;
     
 	(* VERSION_2_0 *)
-	TEnqueueSVMMap* = PROCEDURE{C}(command_queue: cl_command_queue;
+	TEnqueueSVMMap* = PROCEDURE{PlatformCC}(command_queue: cl_command_queue;
 					blocking_map:cl_bool;
 					flags: cl_map_flags;
 					svm_ptr: ADDRESS;
@@ -1440,7 +1446,7 @@ TYPE
 					event: ADDRESS): cl_int;
     
 	(* VERSION_2_0 *)
-	TEnqueueSVMUnmap* = PROCEDURE{C}(command_queue: cl_command_queue;
+	TEnqueueSVMUnmap* = PROCEDURE{PlatformCC}(command_queue: cl_command_queue;
 					svm_ptr: ADDRESS;
 					num_events_in_wait_list: cl_uint;
 					event_wait_list: ADDRESS;
@@ -1455,7 +1461,7 @@ TYPE
 	 *)
 
 	(* VERSION_1_2 *)
-	TGetExtensionFunctionAddressForPlatform* = PROCEDURE {C} (platform: cl_platform_id; CONST func_name:  ARRAY OF CHAR): ADDRESS;
+	TGetExtensionFunctionAddressForPlatform* = PROCEDURE {PlatformCC} (platform: cl_platform_id; CONST func_name:  ARRAY OF CHAR): ADDRESS;
 
 
 	(*! CL_USE_DEPRECATED_OPENCL_1_0_APIS is defined.
@@ -1472,7 +1478,7 @@ TYPE
 	  *)
 
 	 (*  VERSION_1_0_DEPRECATED *)
-	TSetCommandQueueProperty* = PROCEDURE {C}(
+	TSetCommandQueueProperty* = PROCEDURE {PlatformCC}(
 			command_queue       : cl_command_queue;
 			properties          : cl_command_queue_properties;
 			enable              : cl_bool;
@@ -1480,7 +1486,7 @@ TYPE
 			): cl_int;
 
 	(*  VERSION_1_1_DEPRECATED *)
-	TCreateImage2D* = PROCEDURE {C}(
+	TCreateImage2D* = PROCEDURE {PlatformCC}(
 			context         : cl_context;
 			flags   	      : cl_mem_flags;
 			CONST image_format    : cl_image_format;
@@ -1491,7 +1497,7 @@ TYPE
 			VAR errcode_ret		: cl_int
 			): cl_mem;
 
-	TCreateImage3D* = PROCEDURE {C}(
+	TCreateImage3D* = PROCEDURE {PlatformCC}(
 			context 			    : cl_context;
 			flags 			      : cl_mem_flags;
 			CONST image_format      : cl_image_format;
@@ -1504,12 +1510,12 @@ TYPE
 			VAR errcode_ret		: cl_int
 			): cl_mem;
 
-	TEnqueueMarker* = PROCEDURE {C} (command_queue: cl_command_queue; event: ADDRESS ): cl_int;
-	TEnqueueWaitForEvents* = PROCEDURE {C} (command_queue: cl_command_queue; num_events: cl_uint; event_list: ADDRESS ): cl_int;
-	TEnqueueBarrier* = PROCEDURE {C} (command_queue: cl_command_queue): cl_int;
+	TEnqueueMarker* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue; event: ADDRESS ): cl_int;
+	TEnqueueWaitForEvents* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue; num_events: cl_uint; event_list: ADDRESS ): cl_int;
+	TEnqueueBarrier* = PROCEDURE {PlatformCC} (command_queue: cl_command_queue): cl_int;
 
-	TUnloadCompiler* = PROCEDURE {C}(): cl_int;
-	TGetExtensionFunctionAddress* = PROCEDURE {C}(CONST funcname: ARRAY OF CHAR): ADDRESS;
+	TUnloadCompiler* = PROCEDURE {PlatformCC}(): cl_int;
+	TGetExtensionFunctionAddress* = PROCEDURE {PlatformCC}(CONST funcname: ARRAY OF CHAR): ADDRESS;
 (*
 TYPE Context= OBJECT
 	VAR 
@@ -1654,24 +1660,22 @@ VAR
 	(* Extension function access*)
 	GetExtensionFunctionAddress- : TGetExtensionFunctionAddress;
 
-(**  Unix Dlsym function wrapper *)
-PROCEDURE GetProcAddress*( lib: ADDRESS;  CONST procName: ARRAY OF CHAR;  adr: ADDRESS );
+PROCEDURE GetProcAddress*( lib: HostLibs.LibHandle;  CONST procName: ARRAY OF CHAR;  adr: ADDRESS );
+VAR res: BOOLEAN
 BEGIN
-	Unix.Dlsym(lib,  procName, adr);
-	IF debug & ( adr = 0)  THEN
-		KernelLog.String("ERROR: opencl function: "); KernelLog.String(procName); KernelLog.String(" NOT found");  KernelLog.Ln;
-	END;	
+	res := HostLibs.GetProcedure(lib,  procName, adr);
 END GetProcAddress;
 
-PROCEDURE Init;
-BEGIN
-	(* load the DLL *)
-	oclib := Unix.Dlopen(libname,2);
-	IF oclib = 0 THEN
-		KernelLog.String("ERROR: "); KernelLog.String(libname); KernelLog.String(" NOT loaded.");  KernelLog.Ln;
-	END;
 
-	ASSERT(oclib # 0, 300);
+PROCEDURE Init;
+VAR res: BOOLEAN;
+BEGIN
+
+	(* load the DLL *)
+	res := HostLibs.LoadLibrary(libname, oclib);
+	
+	ASSERT(res, 300);
+	
 	KernelLog.String(libname); KernelLog.String(" loaded.");  KernelLog.Ln;
 
 	(* Platform APIs *)
@@ -1825,9 +1829,10 @@ BEGIN
 END Init;
 
 PROCEDURE OnClose;
+VAR res: BOOLEAN;
 BEGIN
-	IF oclib # 0 THEN
-	       Unix.Dlclose(oclib);
+	IF oclib # NIL THEN
+	       res := HostLibs.FreeLibrary(oclib);
 	       KernelLog.String(libname); KernelLog.String(" unloaded."); KernelLog.Ln;
 	END;
 END OnClose;

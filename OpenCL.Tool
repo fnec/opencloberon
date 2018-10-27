@@ -1,17 +1,12 @@
-OpenCL bindings for A2- LinuxAos and WinAos.
+# OpenCL bindings for A2- LinuxAos and WinAos.
+# https://github.com/fnec/opencloberon
 
-# For UnixAos, compile:
-Compiler.Compile 
-	opencloberon/Unix.OpenCL.Mod 
-	opencloberon/Unix.OpenCLext.Mod 
-	opencloberon/Unix.OpenCLGL.Mod
-	~
 
-# For WinAos, compile :
-Compiler.Compile 
-	opencloberon/Win32.OpenCL.Mod 
-	opencloberon/Win32.OpenCLext.Mod 
-	opencloberon/Win32.OpenCLGL.Mod
+# For UNIX and WIN platforms, compile:
+Compiler.Compile
+	opencloberon/OpenCL.Mod
+	opencloberon/OpenCLext.Mod
+	opencloberon/OpenCLGL.Mod
 	~
 
 # Compile Utilities:
@@ -25,6 +20,7 @@ Compiler.Compile
 Compiler.Compile
 	opencloberon/OpenCLVectorSquare.Mod
 	opencloberon/OpenCLVectorSquare1.Mod
+	opencloberon/OpenCLVectorSquare2.Mod
 	opencloberon/MySimpleMandelbrotCL.Mod
 	opencloberon/MyMandelbrotCL.Mod
 	opencloberon/OpenCLEvents.Mod
@@ -47,4 +43,4 @@ Compiler.Compile
 
  # remove all modules till OpenCL:
 
- SystemTools.FreeDownTo OpenCL ~ 
+ System.FreeDownTo OpenCL ~ 

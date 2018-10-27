@@ -63,6 +63,7 @@ TYPE
 			grpanel, grplatform: WMStandardComponents.GroupPanel; (* groupbox panel *)
 			i, k: LONGINT;
 			str: ARRAY 256 OF CHAR;
+			z: CL.size_t;
 	BEGIN
 		(*  Main Panel holding the tabs, toolbar and contents  *)
 
@@ -130,30 +131,58 @@ TYPE
 								
 							
 								NEW(childnode);
-								str := "Name: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].name);
+								str := "Name: "; Strings.Append(str, Utils.platforms[i].devices[k].name);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);	
 								NEW(childnode);
-								str := "Vendor: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].vendor);
+								str := "Vendor: "; Strings.Append(str, Utils.platforms[i].devices[k].vendor);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);
 
 								NEW(childnode);
-								str := "Driver Version: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].driverVersion);
+								str := "Driver Version: "; Strings.Append(str, Utils.platforms[i].devices[k].driverVersion);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);
 								NEW(childnode);
-								str := "Device Version: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].deviceVersion);
+								str := "Device Version: "; Strings.Append(str, Utils.platforms[i].devices[k].deviceVersion);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);
 								NEW(childnode);
-								str := "OpenCL Version: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].openclVersion);
+								str := "OpenCL Version: "; Strings.Append(str, Utils.platforms[i].devices[k].openclVersion);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);
 								NEW(childnode);
-								str := "Device Type: "; Strings.Append(str, Utils.platforms[i].deviceIds[k].typestr);
+								str := "Type: "; Strings.Append(str, Utils.platforms[i].devices[k].typestr);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);
+
+								NEW(childnode);							
+								str := "Max Compute Units: "; Strings.AppendInt(str, LONGINT(Utils.platforms[i].devices[k].maxComputeUnits));
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
+
+								NEW(childnode);
+								str := "Max WorkItem Dim: "; Strings.AppendInt(str, LONGINT(Utils.platforms[i].devices[k].maxWorkItemDimension));
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
+								
+								NEW(childnode);
+								str := "Max WorkItem Sizes: [ "; 
+								FOR z := 0 TO LEN(Utils.platforms[i].devices[k].maxWorkItemSize)-1 DO
+								
+									Strings.AppendInt(str, LONGINT(Utils.platforms[i].devices[k].maxWorkItemSize[k]));
+									Strings.Append(str, " ");
+								END;
+								Strings.Append(str, " ]");
+								     
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
+								
+								NEW(childnode);								
+								str := "Max Group Size: "; Strings.AppendInt(str, LONGINT(Utils.platforms[i].devices[k].maxWorkGroupSize));
+								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
+								platformtree.AddChildNode(devtreenode, childnode);
+
 
 
 							END;

@@ -16,7 +16,6 @@ IMPORT
 	CL := OpenCL, Utils := OpenCLUtils;
 
 TYPE
-	IVector = ARRAY [*] OF LONGINT;
 
 	KillerMsg = OBJECT
 	END KillerMsg;
@@ -53,11 +52,12 @@ TYPE
 		angle : REAL;
 		inited : BOOLEAN;
 
-		globalWorkSize: IVector;
+		globalWorkSize: ARRAY 2 OF CL.size_t;
 
-		origin, region: POINTER TO ARRAY OF CL.size_t;
+		origin, region: ARRAY 3 OF CL.size_t;
 		endrotate: BOOLEAN;
-
+		titleString: Strings.String;
+		
 		PROCEDURE &New(inputImage0: Raster.Image);
 		BEGIN
 			inputImage := inputImage0;
@@ -65,7 +65,9 @@ TYPE
 			Init(inputImage.width, inputImage.height, TRUE);
 			manager := WM.GetDefaultManager();
 			manager.Add(100, 100, SELF, {WM.FlagFrame, WM.FlagClose, WM.FlagNoResizing});
-			SetTitle(Strings.NewString("SimpleImageCL:"));
+			NEW(titleString, 255);
+			titleString^ := "SimpleImageCL:";
+			SetTitle(titleString);
 
 			Raster.InitMode(mode, Raster.srcCopy);
 			NEW(outputImage);
@@ -87,7 +89,7 @@ TYPE
 		VAR
 			err: LONGINT;
 			imageSupport: LONGINT;
-			properties: HUGEINT; (* CL.bit_field *)
+			properties: CL.cl_queue_properties;
 
 		BEGIN
 
@@ -174,8 +176,8 @@ TYPE
 		 BEGIN
 		        (* Create the memory object for the input- and output image *)
 
-				NEW(origin,3); 	NEW(region,3);
-				globalWorkSize := [inputImage0.width, inputImage0.height];
+				globalWorkSize[0] := inputImage0.width;
+				globalWorkSize[1] :=inputImage0.height;
 
 				imageFormat.image_channel_order := CL.RGBA;
 				imageFormat.image_channel_data_type := CL.UNSIGNED_INT8;
@@ -210,9 +212,20 @@ TYPE
 			  err := CL.GetImageInfo(inputImageMem, CL.IMAGE_HEIGHT, SIZEOF(CL.csize_t), ADDRESSOF(tmp), ADDRESSOF(ret));
 			  KernelLog.String("height= "); KernelLog.Int(tmp, 0); KernelLog.Ln;
 		*)
+	     		err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(inputImageMem));
+	     		IF err # CL.SUCCESS THEN
+					 KernelLog.String("ERROR clSetKernelArg-0: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+					 RETURN
+				END;
+	     		err := CL.SetKernelArg(kernel, 1, SIZEOF(CL.cl_mem), ADDRESSOF(outputImageMem));
+	     		IF err # CL.SUCCESS THEN
+					 KernelLog.String("ERROR clSetKernelArg-1: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
+					 RETURN
+				END;
+		
 		END initImageMem;
 
-		PROCEDURE KeyEvent* (ucs: LONGINT; flags: SET; keysym: LONGINT);
+		PROCEDURE KeyEvent (ucs: LONGINT; flags: SET; keysym: LONGINT);
 		BEGIN
 			CASE CHR(ucs) OF
 			 "r" : angle  := angle + 0.1; RotateImage;
@@ -232,12 +245,12 @@ TYPE
 			END
 		END Handle;
 	
-		PROCEDURE Draw*(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;
 
-		PROCEDURE Close*;
+		PROCEDURE Close;
 		VAR err: LONGINT;
 		BEGIN
 			BEGIN {EXCLUSIVE} alive := FALSE; animated := FALSE; AWAIT(endrotate) END;
@@ -293,17 +306,6 @@ TYPE
 
 				 Kernel.SetTimer(timer,0);
 
-	     		err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(inputImageMem));
-	     		IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clSetKernelArg-0: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
-					 RETURN
-				END;
-	     		err := CL.SetKernelArg(kernel, 1, SIZEOF(CL.cl_mem), ADDRESSOF(outputImageMem));
-	     		IF err # CL.SUCCESS THEN
-					 KernelLog.String("ERROR clSetKernelArg-1: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
-					 RETURN
-				END;
-
 	     		err := CL.SetKernelArg(kernel, 2, SIZEOF(CL.cl_float),  ADDRESSOF(angle));
 	     		IF err # CL.SUCCESS THEN
 					 KernelLog.String("ERROR clSetKernelArg-2: ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
@@ -340,11 +342,12 @@ TYPE
 				Strings.IntToStr(elapsed, str1);
 
 			 (*  write timing info for kernels, readbuffer *)
-				ExecutionTime("SimpleImageCL:kernel, read time: ",kernelEvent, readEvent);
+				ExecutionTime("SimpleImageCL:kernel, read time: ", kernelEvent, readEvent);
 				Strings.Append(stitle, ", Total:");
 				Strings.Append(stitle, str1);
 				Strings.Append(stitle, " ms.");
-				SetTitle(Strings.NewString(stitle));
+				COPY(stitle, titleString^ );
+				(* SetTitle(titleString);*)
 				
 				BEGIN {EXCLUSIVE} endrotate:= TRUE END;
 				(* out.String(stitle); out.Ln; out.Update; *)
@@ -404,7 +407,7 @@ BEGIN {EXCLUSIVE}
 	DEC(nofWindows)
 END DecCount;
 
-PROCEDURE Cleanup*;
+PROCEDURE Cleanup;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WM.WindowManager;
@@ -467,9 +470,9 @@ BEGIN
 	Streams.OpenWriter(out, KernelLog.Send);
 END MyImageRotateCL.
 
-SystemTools.FreeDownTo OpenCL ~
+System.FreeDownTo OpenCL ~
 
-SystemTools.Free  MyImageRotateCL~
+System.Free  MyImageRotateCL~
 
 MyImageRotateCL.Open "mars.png" ~
 

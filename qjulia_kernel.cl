@@ -282,8 +282,11 @@ float4
 
     float2 size = (float2)((float)width, (float)height);
     float scale = max(size.x, size.y);
-    float2 half = (float2)(0.5f, 0.5f);
-    float2 position = (coord.xy - half * size) / scale;
+/*    float2 half1;
+    half1.x = 0.5f;
+    half1.y = 0.5f;*/
+    float2 half1 =  (float2) (0.5f, 0.5f);
+    float2 position = (coord.xy - half1 * size) / scale;
     float2 frame = (position) * zoom;
 
     __float3 light = make_float3(1.5f, 0.5f, 4.0f, 0.0f);

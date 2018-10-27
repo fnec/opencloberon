@@ -42,14 +42,14 @@ TYPE
 		maxIterations: LONGINT;
 		sizeX, sizeY: LONGINT; (* size of window *)
 
-		globalWorkSize  : IVector; (* globalWorkSize domain size for our calculation *)
+		globalWorkSize  : ARRAY 2 OF CL.size_t; (* globalWorkSize domain size for our calculation *)
 
 		kernelsource: Strings.String;
 
 		 inited: BOOLEAN;
 		 mousex1, mousey1: LONGINT;
 		 selecting: BOOLEAN;
-		adr: ADDRESS;
+
 		
 	PROCEDURE &New(w, h: LONGINT);
 	BEGIN
@@ -66,17 +66,18 @@ TYPE
 		(* since bpp of linuxAos WM is 16bpp, an image buffer is used. For 32bpp,  windows.img can be used directly *)
 		Raster.InitMode(mode, Raster.srcCopy);
 		NEW(mimage);
-		Raster.Create(mimage, sizeX, sizeY, Raster.BGRA8888);
+		Raster.Create(mimage, w, h, Raster.BGRA8888);
 		InitCL;
 		IncCount;
 	END New;
 
-	PROCEDURE InitCL*;
+	PROCEDURE InitCL;
 	VAR err: LONGINT;
 		bufwritten : LONGINT;
 		buf: ARRAY 4096 OF CHAR;
+		size: CL.size_t;
 	BEGIN
-		NEW(globalWorkSize,2);
+
 		globalWorkSize[0] := sizeX; globalWorkSize[1] := sizeY;
 
 		err := CL.GetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
@@ -120,13 +121,7 @@ TYPE
 		IF kernelsource = NIL THEN
 			RETURN 
 		END;
-		adr := ADDRESSOF(kernelsource[0]);
-		prog := CL.CreateProgramWithSource(context, 1, ADDRESSOF(adr), 0, err);
-
-(*		err := CL.GetProgramInfo(prog, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
-		KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln;
-		KernelLog.String("clGetProgramInfoSource= "); KernelLog.String(buf); KernelLog.Ln;
-*)
+		prog := Utils.CreateProgramWithSource(context, kernelsource^, err);
 
 		err := CL.BuildProgram(prog, 0, 0, "-cl-mad-enable", 0, 0);
 		KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
@@ -136,19 +131,16 @@ TYPE
 			KernelLog.String(buf); KernelLog.Ln;
 		END;
 
-(*		err := CL.GetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_OPTIONS, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
-		KernelLog.String("bufwritten= "); KernelLog.Int(bufwritten, 0); KernelLog.Ln;
-		KernelLog.String("buf= "); KernelLog.String(buf); KernelLog.Ln;
-*)
-
 		kernel := CL.CreateKernel(prog, "computeMandelbrot", err);
-
-		pixelmem := CL.CreateBuffer(context,  CL.MEM_WRITE_ONLY, sizeX*sizeY*4 , 0, err);
+		size := sizeX*sizeY*4;
+		pixelmem := CL.CreateBuffer(context,  CL.MEM_WRITE_ONLY, size , 0, err);
 
 		(* Create and fill the memory object containing the color map *)
 		InitColorMap(256);
 		colormapLength := LEN(colorMap,0);
-		colorMapMem := CL.CreateBuffer(context, CL.MEM_READ_WRITE, colormapLength*SIZEOF(CL.cl_uint), 0, err);
+		size := colormapLength*SIZEOF(CL.cl_uint);
+		
+		colorMapMem := CL.CreateBuffer(context, CL.MEM_READ_WRITE, size, 0, err);
 		err:= CL.EnqueueWriteBuffer(commands, colorMapMem, CL.CL_TRUE, 0, colormapLength * SIZEOF(CL.cl_uint), ADDRESSOF(colorMap[0]), 0, 0, 0);
 
 		maxIterations := 1250;
@@ -175,12 +167,12 @@ TYPE
 		END
 	END Handle;
 
-	PROCEDURE Draw*(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+	PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
 	BEGIN
 		Draw^(canvas, w, h, 0)
 	END Draw;
 
-	PROCEDURE Close*;
+	PROCEDURE Close;
 	VAR err: LONGINT;
 	BEGIN
 		(* Free resources *)
@@ -230,7 +222,7 @@ TYPE
 		selecting := FALSE;
 	END PointerUp;
 
-	PROCEDURE WheelMove*(dz : LONGINT);
+	PROCEDURE WheelMove(dz : LONGINT);
 	VAR dx, dy, delta: REAL;
 	BEGIN
 		dx := x1-x0;
@@ -243,7 +235,7 @@ TYPE
 		UpdateImage;
 	END WheelMove;
 
-	PROCEDURE KeyEvent* (ucs: LONGINT; flags: SET; keysym: LONGINT);
+	PROCEDURE KeyEvent (ucs: LONGINT; flags: SET; keysym: LONGINT);
 	BEGIN
 		CASE CHR(ucs) OF
 		 "q": Close;
@@ -255,6 +247,7 @@ TYPE
 	VAR err: LONGINT;
 		elapsed: LONGINT;
 		str1, str2 : ARRAY 128 OF CHAR;
+	    size: CL.size_t;
 	BEGIN
 		IF inited THEN
 			Kernel.SetTimer(timer,0);
@@ -271,7 +264,8 @@ TYPE
 
 			err := CL.EnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(globalWorkSize[0]), 0, 0, 0, 0);
 			err := CL.Finish(commands);
-			err := CL.EnqueueReadBuffer( commands, pixelmem, CL.CL_TRUE, 0,sizeX*sizeY*4  , mimage.adr, 0, 0, 0);
+			size := sizeX*sizeY*4;
+			err := CL.EnqueueReadBuffer( commands, pixelmem, CL.CL_TRUE, 0, size , mimage.adr, 0, 0, 0);
 
 			elapsed := Kernel.Elapsed(timer);
 			str1:= "SimpleMandelbrotCL:  ";
@@ -309,7 +303,7 @@ BEGIN {EXCLUSIVE}
 	DEC(nofWindows)
 END DecCount;
 
-PROCEDURE Cleanup*;
+PROCEDURE Cleanup;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WM.WindowManager;
@@ -326,8 +320,8 @@ BEGIN
 	Modules.InstallTermHandler(Cleanup);
 END MySimpleMandelbrotCL.
 
-SystemTools.Free MySimpleMandelbrotCL ~
+System.Free MySimpleMandelbrotCL ~
 
-SystemTools.FreeDownTo OpenCL ~
+System.FreeDownTo OpenCL ~
 
 MySimpleMandelbrotCL.Open ~
