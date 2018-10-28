@@ -9,7 +9,6 @@ TYPE
 VAR
 	wr: Streams.Writer;
 
-
 PROCEDURE Test*;
 VAR
 	err     : LONGINT; (* error code returned from api calls*)
@@ -140,7 +139,7 @@ BEGIN
 	wr.String("numdevices dumy= "); wr.Int(dumy, 0); wr.Ln;
 
 	(* Build the program executable *)
-	err := CL.BuildProgram(prog, 0, 0, "", 0, 0);
+	err := CL.BuildProgram(prog, 0, 0, "", NIL, NIL );
 	wr.String("clBuildProgram : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF err # CL.SUCCESS THEN
 		wr.String('Error: Failed to build program executable!'); wr.Ln; wr.Update;

@@ -1,4 +1,4 @@
-MODULE OpenCLVectorSquare1; (** AUTHOR "fnecati"; PURPOSE "Square of vectors using OpenCL"; *)
+MODULE OpenCLVectorSquare2; (** AUTHOR "fnecati"; PURPOSE "Square of vectors using OpenCL"; *)
 IMPORT CL := OpenCL,  KernelLog, Streams, Utils:=OpenCLUtils;
 
 CONST DATA_SIZE=32768 ;
@@ -187,10 +187,10 @@ END Test;
 
 BEGIN
 	Streams.OpenWriter(wr, KernelLog.Send);
-END OpenCLVectorSquare1.
+END OpenCLVectorSquare2.
 
 System.Free OpenCLVectorSquare1~
 
 System.FreeDownTo OpenCL ~
 
-OpenCLVectorSquare1.Test ~
+OpenCLVectorSquare2.Test ~

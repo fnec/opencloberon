@@ -25,9 +25,10 @@ IMPORT Modules, HostLibs, KernelLog;
  ***************************************************************************** *)
 
 CONST
+	debug* = FALSE;	
+	
  #IF UNIX THEN
-	libname = "libOpenCL.so.1";
-	debug* = TRUE;
+	libname = "libOpenCL.so.1";	
  #ELSIF WIN THEN
  	libname = "OpenCL.dll";
  #ELSE
@@ -809,6 +810,7 @@ TYPE
 
 	(*!  Context APIs *)
 
+	(* callback *) 
 	TContextNotifyProc* = PROCEDURE {PlatformCC} (CONST name: ARRAY OF CHAR; data: ADDRESS; size: size_t; data2: ADDRESS);
 
 	(* VERSION_1_0 *)
@@ -984,7 +986,7 @@ TYPE
 	(* VERSION_1_2 *)
 	TCreateProgramWithBuiltInKernels* = PROCEDURE {PlatformCC}(context: cl_context;
 			num_devices: cl_uint;
-			device_list: cl_device_id;
+			device_list: ADDRESS; (* Pcl_device_id *)
 			kernel_names: ADDRESS;
 			VAR errcode_ret: cl_int
 			):cl_program;
@@ -993,9 +995,10 @@ TYPE
 	TRetainProgram* = PROCEDURE {PlatformCC} (iprogram: cl_program): cl_int;
 	TReleaseProgram* = PROCEDURE {PlatformCC} (iprogram: cl_program): cl_int;
 
+	(* callback *) 
 	TProgramNotifyProc* =  PROCEDURE {PlatformCC} (iprogram: cl_program; user_data: ADDRESS);
 
-	TBuildProgram* = PROCEDURE {PlatformCC} (iprogram: cl_program; num_devices:  cl_uint;  device_list: ADDRESS; CONST options: ARRAY OF CHAR; notify: ADDRESS (*TProgramNotify*);  user_data: ADDRESS ): cl_int;
+	TBuildProgram* = PROCEDURE {PlatformCC} (iprogram: cl_program; num_devices:  cl_uint;  device_list: ADDRESS; CONST options: ARRAY OF CHAR; notify: TProgramNotifyProc;  user_data: ADDRESS ): cl_int;
 
 	(* VERSION_1_2 *)
 	TCompileProgram* = PROCEDURE {PlatformCC}(program: cl_program;

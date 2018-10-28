@@ -201,13 +201,13 @@ BEGIN
 
 
 	(* Build the programs *)
-	err := CL.BuildProgram(prog0, 0, 0, "", 0, 0);
+	err := CL.BuildProgram(prog0, 0, 0, "", NIL, 0);
 	wr.String("clBuildProgram-0 : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF err # CL.SUCCESS THEN
 		wr.String('Error: Failed to build program0 executable!'); wr.Ln; wr.Update;
 	END;
 
-	err := CL.BuildProgram(prog1, 0, 0, "", 0, 0);
+	err := CL.BuildProgram(prog1, 0, 0, "", NIL, 0);
 	wr.String("clBuildProgram-1 : "); wr.String(Utils.GetError(err)); wr.Ln;  wr.Update;
 	IF err # CL.SUCCESS THEN
 		wr.String('Error: Failed to build program1 executable!'); wr.Ln; wr.Update;

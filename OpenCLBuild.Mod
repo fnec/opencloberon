@@ -361,7 +361,7 @@ TYPE
 			prog := CL.CreateProgramWithSource(context, 1, ADDRESSOF(pbuf), 0, err);
 			IF prog # 0 THEN
 
-				err := CL.BuildProgram(prog, 0, 0, options, 0, 0);
+				err := CL.BuildProgram(prog, 0, 0, options, NIL, NIL);
 				KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 
 				IF err  # CL.SUCCESS THEN

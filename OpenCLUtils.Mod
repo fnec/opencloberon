@@ -137,7 +137,7 @@ BEGIN
 	
 	(* Build the program executable *)
 	IF prog # 0 THEN
-		err := CL.BuildProgram(prog, 0, 0, buildoptions, 0, 0);
+		err := CL.BuildProgram(prog, 0, 0, buildoptions, NIL, NIL);
 		IF err # CL.SUCCESS THEN
 			KernelLog.String('Error: Failed to build program executable! '); KernelLog.String(GetError(err)); KernelLog.Ln;
 			prog := 0;

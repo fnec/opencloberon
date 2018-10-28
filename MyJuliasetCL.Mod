@@ -160,7 +160,7 @@ TYPE
 			out.String("clGetProgramInfoSource= "); out.String(buf); out.Ln;
 
 		*)
-			err := CL.BuildProgram(prog, 0, 0, "", 0, 0);
+			err := CL.BuildProgram(prog, 0, 0, "", NIL, 0);
 			out.String("clBuildProgram: ");  out.String(Utils.GetError(err));out.Ln; out.Update;
 		(*
 			err := CL.GetProgramBuildInfo(prog, deviceids,CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);

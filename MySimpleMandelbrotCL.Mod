@@ -123,7 +123,7 @@ TYPE
 		END;
 		prog := Utils.CreateProgramWithSource(context, kernelsource^, err);
 
-		err := CL.BuildProgram(prog, 0, 0, "-cl-mad-enable", 0, 0);
+		err := CL.BuildProgram(prog, 0, 0, "-cl-mad-enable", NIL, 0);
 		KernelLog.String("Build error: "); KernelLog.Int(err, 0); KernelLog.String(" -> ");  KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF err # CL.SUCCESS THEN
 			err := CL.GetProgramBuildInfo(prog, deviceid, CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
