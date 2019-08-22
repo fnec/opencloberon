@@ -62,8 +62,8 @@ TYPE
 			vsizer, hsizer : WMStandardComponents.Resizer;
 			grpanel, grplatform: WMStandardComponents.GroupPanel; (* groupbox panel *)
 			i, k: LONGINT;
-			str: ARRAY 256 OF CHAR;
-			z: CL.size_t;
+			str: ARRAY 1024 OF CHAR;
+			z: SIZE;
 	BEGIN
 		(*  Main Panel holding the tabs, toolbar and contents  *)
 
@@ -157,12 +157,12 @@ TYPE
 								platformtree.AddChildNode(devtreenode, childnode);
 
 								NEW(childnode);							
-								str := "Max Compute Units: "; Strings.AppendInt(str, LONGINT(Utils.platforms[i].devices[k].maxComputeUnits));
+								str := "Max Compute Units: "; Strings.AppendInt(str, Utils.platforms[i].devices[k].maxComputeUnits);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);
 
 								NEW(childnode);
-								str := "Max WorkItem Dim: "; Strings.AppendInt(str, LONGINT(Utils.platforms[i].devices[k].maxWorkItemDimension));
+								str := "Max WorkItem Dim: "; Strings.AppendInt(str, Utils.platforms[i].devices[k].maxWorkItemDimension);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);
 								
@@ -170,7 +170,7 @@ TYPE
 								str := "Max WorkItem Sizes: [ "; 
 								FOR z := 0 TO LEN(Utils.platforms[i].devices[k].maxWorkItemSize)-1 DO
 								
-									Strings.AppendInt(str, LONGINT(Utils.platforms[i].devices[k].maxWorkItemSize[k]));
+									Strings.AppendInt(str, Utils.platforms[i].devices[k].maxWorkItemSize[z]);
 									Strings.Append(str, " ");
 								END;
 								Strings.Append(str, " ]");
@@ -179,7 +179,7 @@ TYPE
 								platformtree.AddChildNode(devtreenode, childnode);
 								
 								NEW(childnode);								
-								str := "Max Group Size: "; Strings.AppendInt(str, LONGINT(Utils.platforms[i].devices[k].maxWorkGroupSize));
+								str := "Max Group Size: "; Strings.AppendInt(str, Utils.platforms[i].devices[k].maxWorkGroupSize);
 								platformtree.SetNodeCaption(childnode, Strings.NewString(str));
 								platformtree.AddChildNode(devtreenode, childnode);
 
@@ -517,9 +517,9 @@ END OpenCLBuild.
 
 OpenCLBuild.Open ~ 
 
-SystemTools.Free OpenCLBuild ~
+System.Free OpenCLBuild ~
 
-SystemTools.FreeDownTo OpenCL ~
+System.FreeDownTo OpenCL ~
 
 OpenCLBuild.Open  opencloberon/vectorsquare.cl ~
 

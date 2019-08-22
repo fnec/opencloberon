@@ -67,7 +67,7 @@ TYPE
 		END
 	END SetTopLeft;
 
-	PROCEDURE KeyEvent (ucs: LONGINT; flags: SET; keysym: LONGINT);
+	PROCEDURE KeyEvent (ucs: SIZE; flags: SET; keysym: SIZE);
 	BEGIN
 		CASE CHR(ucs) OF
 		 "t":	Top := Top -0.1; SetTopLeft;;
@@ -168,7 +168,7 @@ TYPE
 			DrawIt;
 		END InitCL;
 
-		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: WORD);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;

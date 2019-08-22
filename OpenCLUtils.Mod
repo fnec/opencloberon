@@ -4,23 +4,6 @@ IMPORT CL:=OpenCL, Files, Strings, KernelLog;
 TYPE
 	String64 = ARRAY 64 OF CHAR;
 
-TYPE PlatformName* = LONGINT; 
-CONST 
-	(* current platforms *)
-	AMD* = 0;
-	NVIDIA* = 1;
-	INTEL* = 2;
-	APPLE* = 3;
-	
-CONST
-	(* error codes for InitPlatform *)
-	Ok* = 0;
-	NoPlatform* = 1;
-	NoDevice* = 2;
-	NoContext* = 3;
-	NoCommandQueue* = 4;
-	
-
 TYPE
 	SizeArray = POINTER TO ARRAY OF CL.size_t;
 	
@@ -52,7 +35,7 @@ TYPE
 		version*: ARRAY 64 OF CHAR;		
 		name*: ARRAY 64 OF CHAR;
 		vendor*: ARRAY 64 OF CHAR;
-		extensions*: ARRAY 128 OF CHAR;
+		extensions*: ARRAY 1024 OF CHAR;
 		
 		numOfDevices*: LONGINT;
 		devices*: Devices;
@@ -62,7 +45,7 @@ TYPE
 
 VAR
 	NumberOfPlatforms-: LONGINT;
-	platforms-: Platforms;
+	platforms-  : Platforms;
 
 (**
  Loads an ASCII Program file and prepends the header to the code.
@@ -74,7 +57,7 @@ VAR
      f: Files.File;
       rider: Files.Rider;
       str: Strings.String;
-      len: LONGINT;
+      len: SIZE;
 BEGIN
 	f := Files.Old(fname);
 	IF f # NIL THEN
@@ -210,7 +193,7 @@ VAR
 
 	uintvalue: CL.cl_uint;
 	workitemsize: SizeArray;
-	sizevalue: CL.size_t;
+	sizevalue: CL.cl_uint;
 	
 BEGIN
 	

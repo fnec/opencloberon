@@ -166,7 +166,7 @@ TYPE
 
 TYPE
 (* VERSION_1_1; *)
-	TclCreateEventFromGLsyncKHR* =  PROCEDURE { C } (context: cl_context;  clglsync: cl_GLsync;  VAR errcode_ret: cl_int): cl_event;
+	TclCreateEventFromGLsyncKHR* =  PROCEDURE {PlatformCC} (context: cl_context;  clglsync: cl_GLsync;  VAR errcode_ret: cl_int): cl_event;
 
 (* **************************** *)
 

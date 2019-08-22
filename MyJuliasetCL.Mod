@@ -13,8 +13,8 @@ CONST
 	WindowWidth = 512; WindowHeight = 512;
 
 TYPE
-	IVector = ARRAY [*] OF CL.size_t;
- 	RVector = ARRAY [4] OF REAL;
+	IVector = ARRAY 2 OF CL.size_t;
+ 	RVector = ARRAY 4 OF REAL;
 
 	KillerMsg = OBJECT
 	END KillerMsg;
@@ -58,22 +58,20 @@ TYPE
 
 		kernelEvent, readEvent: CL.cl_event; (* for event profiling *)
 		endupdate: BOOLEAN;
-		titleString: Strings.String;
 		
 		PROCEDURE &New;
 		BEGIN
 			Init(WindowWidth, WindowHeight, FALSE);
 			manager := WM.GetDefaultManager();
 			manager.Add(100, 100, SELF, {WM.FlagFrame, WM.FlagClose, WM.FlagNoResizing});
-			NEW(titleString, 128);
-			titleString^ := "JuliaSetCL: ";
-			SetTitle(titleString);
+			SetTitle(Strings.NewString("JuliaSetCL: "));
 			SetIcon(WMGraphics.LoadImage("WMIcons.tar://TuringCoatWnd.png", TRUE));
 
 			NEW(rand);
 			rand.InitSeed(Kernel.GetTicks());
-	
-			InitCL;
+			IncCount;
+			
+			IF ~InitCL() THEN Close(); RETURN END;
 		(* since bpp of linuxAos WM is 16bpp, an image buffer is used. For 32bpp,  windows.img can be used directly *)
 			NEW(mimage);
 			Raster.Create(mimage, WindowWidth, WindowHeight, Raster.BGRA8888);
@@ -81,18 +79,18 @@ TYPE
 			UpdateImage;
 			alive := TRUE;
 			animated := FALSE;
-			IncCount;
+			
 		END New;
 
-		PROCEDURE InitCL;
+		PROCEDURE InitCL(): BOOLEAN;
 		VAR err: LONGINT;
 			bufwritten: LONGINT;
-			 buf: ARRAY 1024 OF CHAR;
+			buf: ARRAY 1024 OF CHAR;
 			retsize: CL.size_t;
 		BEGIN
 			epsilon := 0.001;
 			WorkGroupItems := 32;
-			NEW(WorkGroupSize, 2);
+
 			muT := 0.0;
 
 			muA := [-0.278, -0.479, 0.0, 0.0];
@@ -103,13 +101,11 @@ TYPE
 			colB := [0.25, 0.45, 1.0, 1.0];
 			colC := [0.25, 0.45, 1.0, 1.0];
 
-			NEW(global,2); NEW(local,2);
-
 			err := CL.GetPlatformIDs( 0, 0, ADDRESSOF(nplatforms) );
 			out.String("clGetPlatformIDs nplatforms: "); out.String(Utils.GetError(err)); out.Ln;
 			IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
 				out.String('Error: Cannot get # of platforms!'); out.Ln; out.Update;
-				RETURN
+				RETURN FALSE
 			END;
 
 			NEW(platformids, nplatforms);
@@ -118,7 +114,7 @@ TYPE
 			out.String("clGetPlatformIDs : "); out.String(Utils.GetError(err)); out.Ln;
 			IF (err # CL.SUCCESS) THEN
 				out.String('Error: Cannot get platforms!'); out.Ln; out.Update;
-				RETURN
+				RETURN FALSE
 			END;
 
 		    	platform := platformids[0];
@@ -127,9 +123,9 @@ TYPE
 
 			 err := CL.GetDeviceIDs (platform, CL.DEVICE_TYPE_GPU, 0, 0 , ADDRESSOF(ndevices));
 		      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
-			        out.String("clGetDeviceIDs Error: "); out.String(Utils.GetError(err)); out.Ln;
+				out.String("clGetDeviceIDs Error: "); out.String(Utils.GetError(err)); out.Ln;
 		          out.String('Error: Cannot get number of GPU devices!'); out.Ln; out.Update;
-		          RETURN
+		          RETURN FALSE
 		       END;
 
 			NEW(deviceids, ndevices);
@@ -137,7 +133,7 @@ TYPE
 			out.String("clGetDeviceIDs : "); out.String(Utils.GetError(err)); out.Ln;
 			IF (err # CL.SUCCESS) THEN
 				out.String('Error: Cannot get devices!'); out.Ln; out.Update;
-				RETURN
+				RETURN FALSE
 			END;
 			deviceid := deviceids[0];
 
@@ -213,12 +209,12 @@ TYPE
 			err := CL.SetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
 			out.String("clSetKernelArg-3: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-			inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) & (err=0);
-
+			inited := (context # NIL) & (commands # NIL) & (prog # NIL)  & (kernel # NIL) & (err=0);
+			RETURN inited
 		END InitCL;
 
 
-		PROCEDURE KeyEvent (ucs: LONGINT; flags: SET; keysym: LONGINT);
+		PROCEDURE KeyEvent (ucs: SIZE; flags: SET; keysym: SIZE);
 		CONST
 			stepSize = 0.05;
 
@@ -253,7 +249,7 @@ TYPE
 			END
 		END Handle;
 
-		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: WORD);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;
@@ -373,7 +369,7 @@ TYPE
 
 				Strings.Append(str1, str2);
 				Strings.Append(str1, " ms.");
-				COPY(str1, titleString^);
+				SetTitle(Strings.NewString(str1));
 
 				Raster.Copy(mimage,img, 0,0,WindowWidth, WindowHeight, 0,0, mode);
 				Invalidate(WMRectangles.MakeRect(0, 0, GetWidth(), GetHeight()));

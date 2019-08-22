@@ -56,7 +56,6 @@ TYPE
 
 		origin, region: ARRAY 3 OF CL.size_t;
 		endrotate: BOOLEAN;
-		titleString: Strings.String;
 		
 		PROCEDURE &New(inputImage0: Raster.Image);
 		BEGIN
@@ -65,9 +64,7 @@ TYPE
 			Init(inputImage.width, inputImage.height, TRUE);
 			manager := WM.GetDefaultManager();
 			manager.Add(100, 100, SELF, {WM.FlagFrame, WM.FlagClose, WM.FlagNoResizing});
-			NEW(titleString, 255);
-			titleString^ := "SimpleImageCL:";
-			SetTitle(titleString);
+			SetTitle(Strings.NewString("SimpleImageCL:"));
 
 			Raster.InitMode(mode, Raster.srcCopy);
 			NEW(outputImage);
@@ -225,7 +222,7 @@ TYPE
 		
 		END initImageMem;
 
-		PROCEDURE KeyEvent (ucs: LONGINT; flags: SET; keysym: LONGINT);
+		PROCEDURE KeyEvent (ucs: SIZE; flags: SET; keysym: SIZE);
 		BEGIN
 			CASE CHR(ucs) OF
 			 "r" : angle  := angle + 0.1; RotateImage;
@@ -245,7 +242,7 @@ TYPE
 			END
 		END Handle;
 	
-		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: WORD);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;
@@ -346,8 +343,7 @@ TYPE
 				Strings.Append(stitle, ", Total:");
 				Strings.Append(stitle, str1);
 				Strings.Append(stitle, " ms.");
-				COPY(stitle, titleString^ );
-				(* SetTitle(titleString);*)
+				SetTitle(Strings.NewString(stitle));
 				
 				BEGIN {EXCLUSIVE} endrotate:= TRUE END;
 				(* out.String(stitle); out.Ln; out.Update; *)

@@ -9,8 +9,6 @@ CONST
 	WindowWidth = 512; WindowHeight = 512;
 
 TYPE
-	IVector=ARRAY [*] OF LONGINT;
-
 	KillerMsg = OBJECT
 	END KillerMsg;
 
@@ -36,8 +34,8 @@ TYPE
 
 		pixelmem   : CL.cl_mem;  (* The OpenCL memory object which stores the pixel data *)
 		colorMapMem: CL.cl_mem; (*  An OpenCL memory object which stores a nifty color map, encoded as integers combining the RGB components of  the colors. *)
-		colorMap: IVector;  (*The color map which will be copied to OpenCL for filling the PBO *)
-		colormapLength: LONGINT;
+		colorMap: POINTER TO ARRAY  OF LONGINT;  (*The color map which will be copied to OpenCL for filling the PBO *)
+		colormapLength: SIZE;
 		x0, y0, x1, y1: REAL; (* minimum x,y-value of the area in which the Mandelbrot set should be computed *)
 		maxIterations: LONGINT;
 		sizeX, sizeY: LONGINT; (* size of window *)
@@ -46,8 +44,7 @@ TYPE
 
 		kernelsource: Strings.String;
 
-		 inited: BOOLEAN;
-		 mousex1, mousey1: LONGINT;
+		 mousex1, mousey1: SIZE;
 		 selecting: BOOLEAN;
 
 		
@@ -61,17 +58,18 @@ TYPE
 
 		SetTitle(Strings.NewString("SimpleMandelbrotCL: "));
 		SetIcon(WMGraphics.LoadImage("WMIcons.tar://TuringCoatWnd.png", TRUE));
-		inited := FALSE;
 
 		(* since bpp of linuxAos WM is 16bpp, an image buffer is used. For 32bpp,  windows.img can be used directly *)
 		Raster.InitMode(mode, Raster.srcCopy);
 		NEW(mimage);
 		Raster.Create(mimage, w, h, Raster.BGRA8888);
-		InitCL;
 		IncCount;
+		IF ~InitCL() THEN Close(); RETURN END;
+		UpdateImage;
+		
 	END New;
 
-	PROCEDURE InitCL;
+	PROCEDURE InitCL(): BOOLEAN;
 	VAR err: LONGINT;
 		bufwritten : LONGINT;
 		buf: ARRAY 4096 OF CHAR;
@@ -84,7 +82,7 @@ TYPE
 		KernelLog.String("clGetPlatformIDs nplatforms: "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) OR (nplatforms=0) THEN
 			KernelLog.String('Error: Cannot get # of platforms!'); KernelLog.Ln;
-			RETURN;
+			RETURN FALSE ;
 		END;
 
 		NEW(platformids, nplatforms);
@@ -93,7 +91,7 @@ TYPE
 		KernelLog.String("clGetPlatformIDs : "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) THEN
 			KernelLog.String('Error: Cannot get platforms!'); KernelLog.Ln;
-			RETURN;
+			RETURN FALSE;
 		END;
 	    	platform := platformids[0];
 
@@ -102,7 +100,7 @@ TYPE
 	      IF (err # CL.SUCCESS) OR (ndevices = 0) THEN
 		        KernelLog.String("clGetDeviceIDs Error: "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 	          KernelLog.String('Error: Cannot get number of GPU devices!'); KernelLog.Ln;
-	          RETURN;
+	          RETURN FALSE;
 	       END;
 
 		NEW(deviceids, ndevices);
@@ -110,7 +108,7 @@ TYPE
 		KernelLog.String("clGetDeviceIDs : "); KernelLog.String(Utils.GetError(err)); KernelLog.Ln;
 		IF (err # CL.SUCCESS) THEN
 			KernelLog.String('Error: Cannot get devices!'); KernelLog.Ln;
-			RETURN;
+			RETURN FALSE;
 		END;
 		deviceid := deviceids[0];
 
@@ -119,7 +117,7 @@ TYPE
 
 		kernelsource := Utils.LoadProgramSource("opencloberon/SimpleMandelbrot.cl", "");
 		IF kernelsource = NIL THEN
-			RETURN 
+			RETURN FALSE
 		END;
 		prog := Utils.CreateProgramWithSource(context, kernelsource^, err);
 
@@ -129,6 +127,7 @@ TYPE
 			err := CL.GetProgramBuildInfo(prog, deviceid, CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), bufwritten);
 			KernelLog.String("Build Log : "); KernelLog.Ln;
 			KernelLog.String(buf); KernelLog.Ln;
+			RETURN FALSE
 		END;
 
 		kernel := CL.CreateKernel(prog, "computeMandelbrot", err);
@@ -145,8 +144,7 @@ TYPE
 
 		maxIterations := 1250;
 		x0 := -2.0; y0 := -1.3; x1 := 0.6; y1:= 1.3;
-		inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) &(pixelmem # 0) & (colorMapMem # 0);
-		UpdateImage;
+		RETURN  (context # NIL) & (commands # NIL) & (prog # NIL)  & (kernel # NIL) &(pixelmem # NIL) & (colorMapMem # NIL);
 	END InitCL;
 
 	PROCEDURE InitColorMap(stepsize: LONGINT);
@@ -167,7 +165,7 @@ TYPE
 		END
 	END Handle;
 
-	PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h, q : LONGINT);
+	PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: WORD);
 	BEGIN
 		Draw^(canvas, w, h, 0)
 	END Draw;
@@ -176,20 +174,18 @@ TYPE
 	VAR err: LONGINT;
 	BEGIN
 		(* Free resources *)
-		IF inited THEN
-			err := CL.ReleaseMemObject(pixelmem);
-			err := CL.ReleaseMemObject(colorMapMem);
-			err := CL.ReleaseCommandQueue(commands);
-			err := CL.ReleaseContext(context);
-			err := CL.ReleaseKernel(kernel);
-			err := CL.ReleaseProgram(prog);
-		END;
+		err := CL.ReleaseMemObject(pixelmem);
+		err := CL.ReleaseMemObject(colorMapMem);
+		err := CL.ReleaseCommandQueue(commands);
+		err := CL.ReleaseContext(context);
+		err := CL.ReleaseKernel(kernel);
+		err := CL.ReleaseProgram(prog);
 		Close^;
 		DecCount;
 	END Close;
 
-	PROCEDURE PointerMove(x,y : LONGINT; keys : SET);
-	VAR dx, dy: LONGINT;
+	PROCEDURE PointerMove(x,y : SIZE; keys : SET);
+	VAR dx, dy: SIZE;
 		wdx, wdy: REAL;
 	BEGIN
 		IF selecting THEN
@@ -209,7 +205,7 @@ TYPE
 		END;
 	END PointerMove;
 
-	PROCEDURE PointerDown(x,y : LONGINT; keys : SET);
+	PROCEDURE PointerDown(x,y : SIZE; keys : SET);
 	BEGIN
 		IF (keys*{0}#{}) THEN
 			selecting := TRUE;
@@ -217,17 +213,17 @@ TYPE
 		END
 	END PointerDown;
 
-	PROCEDURE PointerUp(x,y : LONGINT; keys : SET);
+	PROCEDURE PointerUp(x,y : SIZE; keys : SET);
 	BEGIN
 		selecting := FALSE;
 	END PointerUp;
 
-	PROCEDURE WheelMove(dz : LONGINT);
+	PROCEDURE WheelMove(dz : SIZE);
 	VAR dx, dy, delta: REAL;
 	BEGIN
 		dx := x1-x0;
-             	dy := y1-y0;
-             	delta := dz / 20.0;
+     dy := y1-y0;
+     delta := dz / 20.0;
 		x0 := x0 + delta * dx;
 		x1 := x1- delta * dx;
 		y0 := y0 + delta * dy;
@@ -235,7 +231,7 @@ TYPE
 		UpdateImage;
 	END WheelMove;
 
-	PROCEDURE KeyEvent (ucs: LONGINT; flags: SET; keysym: LONGINT);
+	PROCEDURE KeyEvent (ucs: SIZE; flags: SET; keysym: SIZE);
 	BEGIN
 		CASE CHR(ucs) OF
 		 "q": Close;
@@ -249,7 +245,6 @@ TYPE
 		str1, str2 : ARRAY 128 OF CHAR;
 	    size: CL.size_t;
 	BEGIN
-		IF inited THEN
 			Kernel.SetTimer(timer,0);
 			err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(pixelmem));
 			err := CL.SetKernelArg(kernel, 1, SIZEOF(LONGINT), ADDRESSOF(sizeX));
@@ -275,7 +270,7 @@ TYPE
 			SetTitle(Strings.NewString(str1));
 			Raster.Copy(mimage,img, 0,0,sizeX, sizeY, 0,0, mode);
 			Invalidate(WMRectangles.MakeRect(0, 0, sizeX, sizeY));
-		END;
+
 	END UpdateImage;
 
 	BEGIN
