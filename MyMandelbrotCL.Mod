@@ -23,11 +23,11 @@ TYPE
 
 		platformids: POINTER TO ARRAY OF CL.cl_platform_id;
 		platform: CL.cl_platform_id;
-		nplatforms: LONGINT;
+		nplatforms: SIGNED32;
 
 		deviceids : POINTER TO ARRAY OF CL.cl_device_id;
 		deviceid: CL.cl_device_id;
-		ndevices: LONGINT;
+		ndevices: SIGNED32;
 
 		context : CL.cl_context;
 		commands : CL.cl_command_queue;
@@ -36,8 +36,8 @@ TYPE
 
 		objmem   : CL.cl_mem;  (* device memory used for the input array *)
 		global  : ARRAY 2 OF CL.size_t; (* global domain size for our calculation *)
-		Left, Top, Bottom, Right: REAL;
-		Stride: LONGINT;
+		Left, Top, Bottom, Right: FLOAT32;
+		Stride: SIGNED32;
 		inited: BOOLEAN;
 
 	PROCEDURE &New;
@@ -58,11 +58,11 @@ TYPE
 	END New;
 
 	PROCEDURE SetTopLeft;
-	VAR err: LONGINT;
+	VAR err: SIGNED32;
 	BEGIN
 		IF inited THEN
-			err := CL.SetKernelArg(kernel, 0, SIZEOF(REAL), ADDRESSOF(Left));
-			err := CL.SetKernelArg(kernel, 1, SIZEOF(REAL), ADDRESSOF(Top));
+			err := CL.SetKernelArg(kernel, 0, SIZEOF(FLOAT32), ADDRESSOF(Left));
+			err := CL.SetKernelArg(kernel, 1, SIZEOF(FLOAT32), ADDRESSOF(Top));
 			DrawIt;
 		END
 	END SetTopLeft;
@@ -88,9 +88,9 @@ TYPE
 	END Handle;
 	
 	PROCEDURE InitCL;
-	VAR err: LONGINT;
+	VAR err: SIGNED32;
 	
-(*	bufwritten: LONGINT;
+(*	bufwritten: SIGNED32;
 	buf: ARRAY 4096 OF CHAR;*)
 	BEGIN
 	
@@ -158,23 +158,23 @@ TYPE
 
 			Top := -2.0; Left := 2.0; Right := -2.0; Bottom:=2.0; Stride := WindowWidth;
 
-			err := CL.SetKernelArg(kernel, 0, SIZEOF(REAL), ADDRESSOF(Left));
-			err := CL.SetKernelArg(kernel, 1, SIZEOF(REAL), ADDRESSOF(Top));
-			err := CL.SetKernelArg(kernel, 2, SIZEOF(REAL), ADDRESSOF(Right));
-			err := CL.SetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(Bottom));
-			err := CL.SetKernelArg(kernel, 4, SIZEOF(LONGINT), ADDRESSOF(Stride));
+			err := CL.SetKernelArg(kernel, 0, SIZEOF(FLOAT32), ADDRESSOF(Left));
+			err := CL.SetKernelArg(kernel, 1, SIZEOF(FLOAT32), ADDRESSOF(Top));
+			err := CL.SetKernelArg(kernel, 2, SIZEOF(FLOAT32), ADDRESSOF(Right));
+			err := CL.SetKernelArg(kernel, 3, SIZEOF(FLOAT32), ADDRESSOF(Bottom));
+			err := CL.SetKernelArg(kernel, 4, SIZEOF(SIGNED32), ADDRESSOF(Stride));
 			err := CL.SetKernelArg(kernel, 5, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));
 			inited := (context # 0) & (commands # 0) & (prog # 0)  & (kernel # 0) & (err=0);
 			DrawIt;
 		END InitCL;
 
-		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: WORD);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: INTEGER);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;
 
 		PROCEDURE Close;
-		VAR err: LONGINT;
+		VAR err: SIGNED32;
 		BEGIN
 			(* Free resources *)
 			IF inited THEN
@@ -189,8 +189,8 @@ TYPE
 		END Close;
 
 		PROCEDURE DrawIt;
-		VAR err: LONGINT;
-			elapsed: LONGINT;
+		VAR err: SIGNED32;
+			elapsed: SIGNED32;
 			str1, str2 : ARRAY 128 OF CHAR;
 		BEGIN
 			IF inited THEN
@@ -216,7 +216,7 @@ TYPE
 
 
 VAR
-	nofWindows : LONGINT;
+	nofWindows : SIGNED32;
 	
 PROCEDURE Open*;
 VAR

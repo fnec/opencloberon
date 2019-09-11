@@ -21,11 +21,11 @@ TYPE
 
 		platformids: POINTER TO ARRAY OF CL.cl_platform_id;
 		platform: CL.cl_platform_id;
-		nplatforms: LONGINT;
+		nplatforms: SIGNED32;
 
 		deviceids : POINTER TO ARRAY OF CL.cl_device_id;
 		deviceid: CL.cl_device_id;
-		ndevices: LONGINT;
+		ndevices: SIGNED32;
 
 		context : CL.cl_context;
 		commands : CL.cl_command_queue;
@@ -34,11 +34,11 @@ TYPE
 
 		pixelmem   : CL.cl_mem;  (* The OpenCL memory object which stores the pixel data *)
 		colorMapMem: CL.cl_mem; (*  An OpenCL memory object which stores a nifty color map, encoded as integers combining the RGB components of  the colors. *)
-		colorMap: POINTER TO ARRAY  OF LONGINT;  (*The color map which will be copied to OpenCL for filling the PBO *)
+		colorMap: POINTER TO ARRAY  OF SIGNED32;  (*The color map which will be copied to OpenCL for filling the PBO *)
 		colormapLength: SIZE;
-		x0, y0, x1, y1: REAL; (* minimum x,y-value of the area in which the Mandelbrot set should be computed *)
-		maxIterations: LONGINT;
-		sizeX, sizeY: LONGINT; (* size of window *)
+		x0, y0, x1, y1: FLOAT32; (* minimum x,y-value of the area in which the Mandelbrot set should be computed *)
+		maxIterations: SIGNED32;
+		sizeX, sizeY: SIGNED32; (* size of window *)
 
 		globalWorkSize  : ARRAY 2 OF CL.size_t; (* globalWorkSize domain size for our calculation *)
 
@@ -48,7 +48,7 @@ TYPE
 		 selecting: BOOLEAN;
 
 		
-	PROCEDURE &New(w, h: LONGINT);
+	PROCEDURE &New(w, h: SIGNED32);
 	BEGIN
 		Init(w, h, FALSE);
 		sizeX := w;
@@ -70,8 +70,8 @@ TYPE
 	END New;
 
 	PROCEDURE InitCL(): BOOLEAN;
-	VAR err: LONGINT;
-		bufwritten : LONGINT;
+	VAR err: SIGNED32;
+		bufwritten : SIGNED32;
 		buf: ARRAY 4096 OF CHAR;
 		size: CL.size_t;
 	BEGIN
@@ -147,8 +147,8 @@ TYPE
 		RETURN  (context # NIL) & (commands # NIL) & (prog # NIL)  & (kernel # NIL) &(pixelmem # NIL) & (colorMapMem # NIL);
 	END InitCL;
 
-	PROCEDURE InitColorMap(stepsize: LONGINT);
-	VAR i, x: LONGINT;
+	PROCEDURE InitColorMap(stepsize: SIGNED32);
+	VAR i, x: SIGNED32;
 	BEGIN
 		NEW(colorMap,stepsize);
   		FOR i := 0 TO stepsize-1 DO
@@ -165,13 +165,13 @@ TYPE
 		END
 	END Handle;
 
-	PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: WORD);
+	PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: INTEGER);
 	BEGIN
 		Draw^(canvas, w, h, 0)
 	END Draw;
 
 	PROCEDURE Close;
-	VAR err: LONGINT;
+	VAR err: SIGNED32;
 	BEGIN
 		(* Free resources *)
 		err := CL.ReleaseMemObject(pixelmem);
@@ -186,7 +186,7 @@ TYPE
 
 	PROCEDURE PointerMove(x,y : SIZE; keys : SET);
 	VAR dx, dy: SIZE;
-		wdx, wdy: REAL;
+		wdx, wdy: FLOAT32;
 	BEGIN
 		IF selecting THEN
                 dx := mousex1 - x;
@@ -219,7 +219,7 @@ TYPE
 	END PointerUp;
 
 	PROCEDURE WheelMove(dz : SIZE);
-	VAR dx, dy, delta: REAL;
+	VAR dx, dy, delta: FLOAT32;
 	BEGIN
 		dx := x1-x0;
      dy := y1-y0;
@@ -240,22 +240,22 @@ TYPE
 	END KeyEvent;
 	
 	PROCEDURE UpdateImage;
-	VAR err: LONGINT;
-		elapsed: LONGINT;
+	VAR err: SIGNED32;
+		elapsed: SIGNED32;
 		str1, str2 : ARRAY 128 OF CHAR;
 	    size: CL.size_t;
 	BEGIN
 			Kernel.SetTimer(timer,0);
 			err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(pixelmem));
-			err := CL.SetKernelArg(kernel, 1, SIZEOF(LONGINT), ADDRESSOF(sizeX));
-			err := CL.SetKernelArg(kernel, 2, SIZEOF(LONGINT), ADDRESSOF(sizeY));
-			err := CL.SetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(x0));
-			err := CL.SetKernelArg(kernel, 4, SIZEOF(REAL), ADDRESSOF(y0));
-			err := CL.SetKernelArg(kernel, 5, SIZEOF(REAL), ADDRESSOF(x1));
-			err := CL.SetKernelArg(kernel, 6, SIZEOF(REAL), ADDRESSOF(y1));
-			err := CL.SetKernelArg(kernel, 7, SIZEOF(LONGINT), ADDRESSOF(maxIterations));
+			err := CL.SetKernelArg(kernel, 1, SIZEOF(SIGNED32), ADDRESSOF(sizeX));
+			err := CL.SetKernelArg(kernel, 2, SIZEOF(SIGNED32), ADDRESSOF(sizeY));
+			err := CL.SetKernelArg(kernel, 3, SIZEOF(FLOAT32), ADDRESSOF(x0));
+			err := CL.SetKernelArg(kernel, 4, SIZEOF(FLOAT32), ADDRESSOF(y0));
+			err := CL.SetKernelArg(kernel, 5, SIZEOF(FLOAT32), ADDRESSOF(x1));
+			err := CL.SetKernelArg(kernel, 6, SIZEOF(FLOAT32), ADDRESSOF(y1));
+			err := CL.SetKernelArg(kernel, 7, SIZEOF(SIGNED32), ADDRESSOF(maxIterations));
 			err := CL.SetKernelArg(kernel, 8, SIZEOF(CL.cl_mem), ADDRESSOF(colorMapMem));
-			err := CL.SetKernelArg(kernel, 9, SIZEOF(LONGINT), ADDRESSOF(colormapLength));
+			err := CL.SetKernelArg(kernel, 9, SIZEOF(SIGNED32), ADDRESSOF(colormapLength));
 
 			err := CL.EnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(globalWorkSize[0]), 0, 0, 0, 0);
 			err := CL.Finish(commands);
@@ -278,7 +278,7 @@ TYPE
 	END MBWindow;
 
 VAR
-	nofWindows : LONGINT;
+	nofWindows : SIGNED32;
 
 PROCEDURE Open*;
 VAR

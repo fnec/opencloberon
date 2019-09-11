@@ -14,7 +14,7 @@ CONST
 
 TYPE
 	IVector = ARRAY 2 OF CL.size_t;
- 	RVector = ARRAY 4 OF REAL;
+ 	RVector = ARRAY 4 OF FLOAT32;
 
 	KillerMsg = OBJECT
 	END KillerMsg;
@@ -30,11 +30,11 @@ TYPE
 
 		platformids  : POINTER TO ARRAY OF CL.cl_platform_id;
 		platform: CL.cl_platform_id;
-		nplatforms: LONGINT;
+		nplatforms: SIGNED32;
 
 		deviceids : POINTER TO ARRAY OF CL.cl_device_id;
 		deviceid : CL.cl_device_id;
-		ndevices: LONGINT;
+		ndevices: SIGNED32;
 
 		context : CL.cl_context;
 		commands : CL.cl_command_queue;
@@ -46,13 +46,13 @@ TYPE
 		kernelsource: Strings.String;
 
 		muA, muB, muC, colA, colB, colC: RVector;
-		muT, colT: REAL;
+		muT, colT: FLOAT32;
 
-		epsilon: REAL;
+		epsilon: FLOAT32;
 		inited : BOOLEAN;
 
 		MaxWorkGroupSize: CL.size_t;
-		WorkGroupItems : LONGINT;
+		WorkGroupItems : SIGNED32;
 		WorkGroupSize: IVector;
 		sizeX, sizeY: CL.size_t;
 
@@ -83,8 +83,8 @@ TYPE
 		END New;
 
 		PROCEDURE InitCL(): BOOLEAN;
-		VAR err: LONGINT;
-			bufwritten: LONGINT;
+		VAR err: SIGNED32;
+			bufwritten: SIGNED32;
 			buf: ARRAY 1024 OF CHAR;
 			retsize: CL.size_t;
 		BEGIN
@@ -200,13 +200,13 @@ TYPE
 			err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));
 			out.String("clSetKernelArg-0: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-			err := CL.SetKernelArg(kernel, 1, SIZEOF(REAL)*LEN(muC,0), ADDRESSOF(muC[0]));
+			err := CL.SetKernelArg(kernel, 1, SIZEOF(FLOAT32)*LEN(muC,0), ADDRESSOF(muC[0]));
 			out.String("clSetKernelArg-1: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-			err := CL.SetKernelArg(kernel, 2, SIZEOF(REAL)*LEN(colC,0), ADDRESSOF(colC[0]));
+			err := CL.SetKernelArg(kernel, 2, SIZEOF(FLOAT32)*LEN(colC,0), ADDRESSOF(colC[0]));
 			out.String("clSetKernelArg-2: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
-			err := CL.SetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
+			err := CL.SetKernelArg(kernel, 3, SIZEOF(FLOAT32), ADDRESSOF(epsilon));
 			out.String("clSetKernelArg-3: ");  out.String(Utils.GetError(err)); out.Ln; out.Update;
 
 			inited := (context # NIL) & (commands # NIL) & (prog # NIL)  & (kernel # NIL) & (err=0);
@@ -249,13 +249,13 @@ TYPE
 			END
 		END Handle;
 
-		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: WORD);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: INTEGER);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;
 
 		PROCEDURE Close;
-		VAR err: LONGINT;
+		VAR err: SIGNED32;
 		BEGIN
 			BEGIN{EXCLUSIVE} alive := FALSE; animated := FALSE; AWAIT(endupdate) END;
 			(* Free resources *)
@@ -272,7 +272,7 @@ TYPE
 			DecCount;
 		END Close;
 
-		PROCEDURE UpdateMu( VAR t: REAL; VAR a, b: RVector );
+		PROCEDURE UpdateMu( VAR t: FLOAT32; VAR a, b: RVector );
 		BEGIN
 		    t := t + 0.01;
 		    IF t >= 1.0 THEN
@@ -297,7 +297,7 @@ TYPE
 		    v[ 3 ] := 1.0;
 		END  RandomColor;
 
-		PROCEDURE UpdateColor( VAR t: REAL; VAR a, b: RVector );
+		PROCEDURE UpdateColor( VAR t: FLOAT32; VAR a, b: RVector );
 		BEGIN
 		    t := t + 0.01;
 		    IF  t >= 1.0 THEN
@@ -310,30 +310,30 @@ TYPE
 		    END;
 		END UpdateColor;
 
-		PROCEDURE Interpolate( VAR m: RVector; t: REAL; CONST a, b: RVector );
-		VAR i: LONGINT;
+		PROCEDURE Interpolate( VAR m: RVector; t: FLOAT32; CONST a, b: RVector );
+		VAR i: SIGNED32;
 		BEGIN
 		    FOR i:=0 TO 3 DO
 		        m[ i ] := ( 1.0 - t ) * a[ i ] + t * b[ i ];
 		    END;
 		END Interpolate;
 
-		PROCEDURE ExecutionTime(e: CL.cl_event): LONGREAL;
-		VAR sec: LONGREAL;
-			 err: LONGINT;
-			 endtime, starttime: HUGEINT;
+		PROCEDURE ExecutionTime(e: CL.cl_event): FLOAT64;
+		VAR sec: FLOAT64;
+			 err: SIGNED32;
+			 endtime, starttime: SIGNED64;
 		BEGIN
-			err := CL.GetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, SIZEOF(HUGEINT), ADDRESSOF(endtime),0);
-			err := CL.GetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, SIZEOF(HUGEINT), ADDRESSOF(starttime), 0);
+			err := CL.GetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, SIZEOF(SIGNED64), ADDRESSOF(endtime),0);
+			err := CL.GetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, SIZEOF(SIGNED64), ADDRESSOF(starttime), 0);
 
 			sec := 1.0D-6*(endtime-starttime); (* ns->ms *)
 			RETURN sec;
 		END ExecutionTime;
 
 		PROCEDURE UpdateImage;
-		VAR err: LONGINT;
+		VAR err: SIGNED32;
 			str1, str2 : ARRAY 128 OF CHAR;
-			relapsed: LONGREAL;
+			relapsed: FLOAT64;
 
 		BEGIN
 			BEGIN {EXCLUSIVE} endupdate := FALSE; END;
@@ -347,9 +347,9 @@ TYPE
 			END;
 
 			(* err := CL.SetKernelArg(kernel, 0, SIZEOF(CL.cl_mem), ADDRESSOF(objmem));*)
-			err := CL.SetKernelArg(kernel, 1, SIZEOF(REAL)*LEN(muC,0), ADDRESSOF(muC[0]));
-			err := CL.SetKernelArg(kernel, 2, SIZEOF(REAL)*LEN(colC,0), ADDRESSOF(colC[0]));
-			err := CL.SetKernelArg(kernel, 3, SIZEOF(REAL), ADDRESSOF(epsilon));
+			err := CL.SetKernelArg(kernel, 1, SIZEOF(FLOAT32)*LEN(muC,0), ADDRESSOF(muC[0]));
+			err := CL.SetKernelArg(kernel, 2, SIZEOF(FLOAT32)*LEN(colC,0), ADDRESSOF(colC[0]));
+			err := CL.SetKernelArg(kernel, 3, SIZEOF(FLOAT32), ADDRESSOF(epsilon));
 
 				err := CL.EnqueueNDRangeKernel(commands, kernel, 2, 0 ,  ADDRESSOF(global[0]), ADDRESSOF(local[0]), 0, 0, ADDRESSOF(kernelEvent));
 				err := CL.WaitForEvents(1, ADDRESSOF(kernelEvent));
@@ -378,7 +378,7 @@ TYPE
 		END UpdateImage;
 
 		PROCEDURE SaveImage;
-		VAR res: LONGINT;
+		VAR res: SIGNED32;
 			fname: ARRAY 128 OF CHAR;
 		BEGIN
 		fname:="juliaset0.bmp";
@@ -396,7 +396,7 @@ TYPE
 
 VAR
 	out: Streams.Writer;
-	nofWindows: LONGINT;
+	nofWindows: SIGNED32;
 	
 PROCEDURE Open*;
 VAR window : MBWindow;

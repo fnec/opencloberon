@@ -54,16 +54,16 @@ TYPE
     	(* scalar types  *)
 	cl_char* = CHAR; (*-127..+128 *)
 	cl_uchar* = UNSIGNED8;  (* 0..255 *)
-	cl_short* = INTEGER; (* - 32767..+32768; *)
+	cl_short* = SIGNED16; (* - 32767..+32768; *)
 	cl_ushort* = UNSIGNED16; (*  0..+65535; *)
-	cl_int* = LONGINT; (*-2147483647..+2147483648;  *)
+	cl_int* = SIGNED32; (*-2147483647..+2147483648;  *)
 	cl_uint* = UNSIGNED32;  (* 0..4294967295;  *)
-	cl_long* = HUGEINT; (* Int64;// 0..184467440773709551615;//-$8000000000000001..+$8000000000000000{9223372036854775808}; //typedef signed   __int64  cl_long; *)
-	cl_ulong* = HUGEINT; (* UNSIGNED64; *)
+	cl_long* = SIGNED64; (* Int64;// 0..184467440773709551615;//-$8000000000000001..+$8000000000000000{9223372036854775808}; //typedef signed   __int64  cl_long; *)
+	cl_ulong* = SIGNED64; (* UNSIGNED64; *)
 
-	cl_half* = INTEGER;
-	cl_float* = REAL;
-	cl_double* = LONGREAL;
+	cl_half* = SIGNED16;
+	cl_float* = FLOAT32;
+	cl_double* = FLOAT64;
 
 
 (* Macro names and corresponding values defined by OpenCL *)
@@ -139,7 +139,7 @@ TYPE
 TYPE
 	(* Mirror types to GL types. Mirror types allow us to avoid deciding which headers to load based on whether we are using GL or GLES here. *)
 	cl_GLuint* = cl_uint;
-	cl_GLint* = LONGINT;;
+	cl_GLint* = SIGNED32;;
 	cl_GLenum* = cl_uint;
 
 

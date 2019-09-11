@@ -37,14 +37,14 @@ TYPE
 		vendor*: ARRAY 64 OF CHAR;
 		extensions*: ARRAY 1024 OF CHAR;
 		
-		numOfDevices*: LONGINT;
+		numOfDevices*: SIGNED32;
 		devices*: Devices;
 	END;
 		
 	Platforms*  = POINTER TO ARRAY OF Platform;
 
 VAR
-	NumberOfPlatforms-: LONGINT;
+	NumberOfPlatforms-: SIGNED32;
 	platforms-  : Platforms;
 
 (**
@@ -71,7 +71,7 @@ BEGIN
 	RETURN str;
 END LoadProgramSource;
 
-PROCEDURE CheckError*(CONST title: ARRAY OF CHAR; err: LONGINT);
+PROCEDURE CheckError*(CONST title: ARRAY OF CHAR; err: SIGNED32);
 BEGIN
 	IF err # CL.SUCCESS THEN
 		KernelLog.String(title);  KernelLog.String(GetError(err)); KernelLog.Ln;
@@ -79,7 +79,7 @@ BEGIN
 END CheckError;
 
 (** wrapper procedure  for CL.CreateProgramWithSource *)
-PROCEDURE CreateProgramWithSource*(context: CL.cl_context; CONST progSource: ARRAY OF CHAR; VAR err: LONGINT ): CL.cl_program;
+PROCEDURE CreateProgramWithSource*(context: CL.cl_context; CONST progSource: ARRAY OF CHAR; VAR err: SIGNED32 ): CL.cl_program;
 VAR adr: ADDRESS;
 	prog: CL.cl_program;
 BEGIN
@@ -99,7 +99,7 @@ BEGIN
 END CreateProgramWithSource;
 
 (** build program from given program source and build options as array of char *)
-PROCEDURE BuildProgramFromStringSource*(context: CL.cl_context; CONST progSource: ARRAY OF CHAR; CONST buildoptions:  ARRAY OF CHAR; VAR err: LONGINT): CL.cl_program;
+PROCEDURE BuildProgramFromStringSource*(context: CL.cl_context; CONST progSource: ARRAY OF CHAR; CONST buildoptions:  ARRAY OF CHAR; VAR err: SIGNED32): CL.cl_program;
 VAR 
 	adr : ADDRESS;
 	prog: CL.cl_program;
@@ -131,7 +131,7 @@ BEGIN
 END BuildProgramFromStringSource;
 
 (** build program from given program filename and build options *)
-PROCEDURE BuildProgramFromSourceFile*(context: CL.cl_context; CONST progFilename, kernelheader, buildoptions: ARRAY OF CHAR; VAR err: LONGINT): CL.cl_program;
+PROCEDURE BuildProgramFromSourceFile*(context: CL.cl_context; CONST progFilename, kernelheader, buildoptions: ARRAY OF CHAR; VAR err: SIGNED32): CL.cl_program;
 VAR prog: CL.cl_program;
 	progSource : Strings.String;
 	erstr: ARRAY 128 OF CHAR;
@@ -147,8 +147,8 @@ BEGIN
 	RETURN prog;
 END BuildProgramFromSourceFile;
 
-PROCEDURE GetProgramBuildLog*(program : CL.cl_program; deviceid : CL.cl_device_id): LONGINT;
-VAR err: LONGINT;
+PROCEDURE GetProgramBuildLog*(program : CL.cl_program; deviceid : CL.cl_device_id): SIGNED32;
+VAR err: SIGNED32;
 	buf:  ARRAY 1024 OF  CHAR;
 BEGIN
 	err := CL.GetProgramBuildInfo(program, deviceid,CL.PROGRAM_BUILD_LOG, LEN(buf), ADDRESSOF(buf[0]), 0);
@@ -160,10 +160,10 @@ BEGIN
 	RETURN err;
 END GetProgramBuildLog;
 
-PROCEDURE GetProgramSource*(program : CL.cl_program ): LONGINT;
-VAR err: LONGINT;
+PROCEDURE GetProgramSource*(program : CL.cl_program ): SIGNED32;
+VAR err: SIGNED32;
 	buf:  ARRAY 1024 OF  CHAR;
-	bufwritten: LONGINT;
+	bufwritten: SIGNED32;
 BEGIN
 	err := CL.GetProgramInfo(program, CL.PROGRAM_SOURCE, LEN(buf), ADDRESSOF(buf), bufwritten);
 	IF (err # CL.SUCCESS) THEN
@@ -179,15 +179,15 @@ END GetProgramSource;
 (** search opencl platforms and devices and fill platforms variable *)
 PROCEDURE SearchPlatformsAndDevices(); 
 VAR
-	err: LONGINT;
+	err: SIGNED32;
 	platformids  : POINTER TO ARRAY OF CL.cl_platform_id;
 	platform: CL.cl_platform_id;
-	nplatforms: LONGINT;
+	nplatforms: SIGNED32;
 	deviceids : POINTER TO ARRAY OF CL.cl_device_id;
-	ndevices: LONGINT;
+	ndevices: SIGNED32;
 	devtype: CL.cl_bitfield;
 
-	i, k: LONGINT;
+	i, k: SIGNED32;
 	str : ARRAY 32 OF CHAR;
 	buf  :  ARRAY 1024 OF  CHAR;
 
@@ -293,7 +293,7 @@ BEGIN
 END SearchPlatformsAndDevices;
 
 PROCEDURE GetPlatformByVendor*(CONST vname: ARRAY OF CHAR; VAR p: Platform): BOOLEAN;
-VAR i: LONGINT;
+VAR i: SIGNED32;
 	found: BOOLEAN;
 BEGIN
 	found := FALSE;
@@ -313,7 +313,7 @@ END GetPlatformByVendor;
 (* vendors AMD, NVIDIA, Intel; devicetype: CPU, GPU,.. *)
 
 PROCEDURE GetPlatformDevice*(CONST vname: ARRAY OF CHAR; devicetype: CL.cl_bitfield; VAR platform: CL.cl_platform_id; VAR device: CL.cl_device_id): BOOLEAN;
-VAR i: LONGINT;
+VAR i: SIGNED32;
 	found: BOOLEAN;
 	p: Platform;
 BEGIN
@@ -366,7 +366,7 @@ BEGIN
 END RoundUp;
 
 (** convert cl error number to the corresponding string *)
-PROCEDURE GetError*(err:LONGINT): String64;
+PROCEDURE GetError*(err:SIGNED32): String64;
 VAR serr : String64;
 	serrno: ARRAY 16 OF CHAR;
 BEGIN

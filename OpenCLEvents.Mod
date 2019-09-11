@@ -3,7 +3,7 @@ IMPORT CL := OpenCL, KernelLog, Streams, Strings, Utils:=OpenCLUtils ;
 
 (* An example for Event based timing measurements with two program kernel *)
 
-TYPE RVector = POINTER TO ARRAY OF REAL;
+TYPE RVector = POINTER TO ARRAY OF FLOAT32;
 
 VAR
 	wr: Streams.Writer;
@@ -39,19 +39,19 @@ END MyProgramSource1;
 
 (* calculate execution time for the event *)
 PROCEDURE ExecutionTime(e: CL.cl_event);
-VAR sec: LONGREAL;
-	 err: LONGINT;
-	 endtime, starttime: HUGEINT;
+VAR sec: FLOAT64;
+	 err: SIGNED32;
+	 endtime, starttime: SIGNED64;
 BEGIN
-	err := CL.GetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, SIZEOF(HUGEINT), ADDRESSOF(endtime),0);
-	err := CL.GetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, SIZEOF(HUGEINT), ADDRESSOF(starttime), 0);
+	err := CL.GetEventProfilingInfo(e , CL.PROFILING_COMMAND_END, SIZEOF(SIGNED64), ADDRESSOF(endtime),0);
+	err := CL.GetEventProfilingInfo(e, CL.PROFILING_COMMAND_START, SIZEOF(SIGNED64), ADDRESSOF(starttime), 0);
 
 	sec := 1.0D-3*(endtime-starttime);   (* ns -> us *)
 	wr.FloatFix(sec, 20,3,0); wr.String(" us.");
 END ExecutionTime;
 
-PROCEDURE WriteVector(v: RVector; kmax: LONGINT);
-VAR i: LONGINT;
+PROCEDURE WriteVector(v: RVector; kmax: SIGNED32);
+VAR i: SIGNED32;
 BEGIN
 	FOR i:=0 TO kmax-1 DO   wr.FloatFix(v[i],10,1,0);  END;
 	wr.Ln;
@@ -60,8 +60,8 @@ END WriteVector;
 
 PROCEDURE Test*;
 VAR
-	n: LONGINT; (* size of data *)
-	err, i, itemp     : LONGINT; (* error code returned from api calls*)
+	n: SIGNED32; (* size of data *)
+	err, i, itemp     : SIGNED32; (* error code returned from api calls*)
 
 	srcArrayA, srcArrayB, dstArray0, dstArray1 : RVector;
 
@@ -69,11 +69,11 @@ VAR
 
 	platformids  : POINTER TO ARRAY OF CL.cl_platform_id;
 	platform: CL.cl_platform_id;
-	nplatforms: LONGINT;
+	nplatforms: SIGNED32;
 
 	deviceids : POINTER TO ARRAY OF CL.cl_device_id;
 	deviceid : CL.cl_device_id;
-	ndevices: LONGINT;
+	ndevices: SIGNED32;
 
 	context : CL.cl_context;
 	commands : CL.cl_command_queue;
@@ -89,8 +89,8 @@ VAR
 	eventlist, readeventlist: POINTER TO ARRAY OF CL.cl_event;
 
       progsource0, progsource1: Strings.String;
-     cmdproperties: HUGEINT;
-     commandprops: HUGEINT;
+     cmdproperties: SIGNED64;
+     commandprops: SIGNED64;
      
      adr: ADDRESS;
 	
@@ -155,7 +155,7 @@ BEGIN
 	END;
   (* ******************* *)
 	(* for testing *)
-    err := CL.GetCommandQueueInfo(commands, CL.QUEUE_PROPERTIES, SIZEOF(HUGEINT), ADDRESSOF(commandprops), ADDRESSOF(itemp));
+    err := CL.GetCommandQueueInfo(commands, CL.QUEUE_PROPERTIES, SIZEOF(SIGNED64), ADDRESSOF(commandprops), ADDRESSOF(itemp));
    wr.String("commands properties= "); wr.Int(SHORT(commandprops),0); wr.Ln; wr.Update;
    wr.String("commandinfo returned bytes itemp0= "); wr.Int(itemp,0); wr.Ln; wr.Update;
 	wr.String("clGetCommandQueueInfo : "); wr.String(Utils.GetError(err)); wr.Ln;
@@ -166,14 +166,14 @@ BEGIN
 
       (*************************************)
       (* allocate device memory objects   *)
-	srcMemA := CL.CreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(REAL) * n, 0, err);
-	srcMemB := CL.CreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(REAL) * n, 0, err);
+	srcMemA := CL.CreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(FLOAT32) * n, 0, err);
+	srcMemB := CL.CreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(FLOAT32) * n, 0, err);
 
-	dstMem0 := CL.CreateBuffer(context, CL.MEM_READ_WRITE, SIZEOF(REAL) * n, 0, err);
-	dstMem1 := CL.CreateBuffer(context, CL.MEM_READ_WRITE, SIZEOF(REAL) * n, 0, err);
+	dstMem0 := CL.CreateBuffer(context, CL.MEM_READ_WRITE, SIZEOF(FLOAT32) * n, 0, err);
+	dstMem1 := CL.CreateBuffer(context, CL.MEM_READ_WRITE, SIZEOF(FLOAT32) * n, 0, err);
 
-	err := CL.EnqueueWriteBuffer(commands, srcMemA, CL.CL_TRUE, 0, n * SIZEOF(REAL), ADDRESSOF(srcArrayA[0]), 0, 0, 0);
-	err := CL.EnqueueWriteBuffer(commands, srcMemB, CL.CL_TRUE, 0, n * SIZEOF(REAL), ADDRESSOF(srcArrayB[0]), 0, 0, 0);
+	err := CL.EnqueueWriteBuffer(commands, srcMemA, CL.CL_TRUE, 0, n * SIZEOF(FLOAT32), ADDRESSOF(srcArrayA[0]), 0, 0, 0);
+	err := CL.EnqueueWriteBuffer(commands, srcMemB, CL.CL_TRUE, 0, n * SIZEOF(FLOAT32), ADDRESSOF(srcArrayB[0]), 0, 0, 0);
 
 	IF (srcMemA = 0) OR  (srcMemB = 0) OR (dstMem0 = 0) OR  (dstMem1 = 0) THEN
 		wr.String("Failed to allocate device memory!  : "); wr.Ln; wr.Update;
@@ -265,7 +265,7 @@ BEGIN
 
 	(* ********************* *)
 	(* get event info for testing *)
-   err := CL.GetEventInfo(kernelEvent0, CL.EVENT_COMMAND_TYPE, SIZEOF(LONGINT), ADDRESSOF(itemp),0);
+   err := CL.GetEventInfo(kernelEvent0, CL.EVENT_COMMAND_TYPE, SIZEOF(SIGNED32), ADDRESSOF(itemp),0);
    wr.String("COMMAND_TYPE for kernelEvent0 = "); wr.Hex(itemp, -4); wr.Ln;
 	wr.String("clGetEventInfo-0 : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
@@ -273,7 +273,7 @@ BEGIN
 		RETURN
 	END;
 
-   err := CL.GetEventInfo(kernelEvent0, CL.EVENT_COMMAND_EXECUTION_STATUS, SIZEOF(LONGINT), ADDRESSOF(itemp),0);
+   err := CL.GetEventInfo(kernelEvent0, CL.EVENT_COMMAND_EXECUTION_STATUS, SIZEOF(SIGNED32), ADDRESSOF(itemp),0);
    wr.String("EXECUTION_STATUS for kernelEvent0= "); wr.Hex(itemp, -4); wr.Ln;
 	wr.String("clGetEventInfo-0 : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
@@ -295,7 +295,7 @@ BEGIN
 *)
 	(* ******************** *)
 
-   err := CL.GetEventInfo(kernelEvent0, CL.EVENT_COMMAND_EXECUTION_STATUS, SIZEOF(LONGINT), ADDRESSOF(itemp),0);
+   err := CL.GetEventInfo(kernelEvent0, CL.EVENT_COMMAND_EXECUTION_STATUS, SIZEOF(SIGNED32), ADDRESSOF(itemp),0);
    wr.String("AFTER: EXECUTION_STATUS for kernelEvent0= "); wr.Hex(itemp, -4); wr.Ln;
 	wr.String("clGetEventInfo-0 : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
@@ -308,8 +308,8 @@ BEGIN
 	wr.String("kernel-1 execution time: ");  ExecutionTime(kernelEvent1); wr.Ln; wr.Update;
 
 	(* Read the results from device to host variable*)
-	err := CL.EnqueueReadBuffer(commands, dstMem0, CL.CL_TRUE, 0, n * SIZEOF(REAL), ADDRESSOF(dstArray0[0]), 0, 0, ADDRESSOF(readEvent0));
-	err := CL.EnqueueReadBuffer(commands, dstMem1, CL.CL_TRUE, 0, n * SIZEOF(REAL), ADDRESSOF(dstArray1[0]), 0, 0, ADDRESSOF(readEvent1));
+	err := CL.EnqueueReadBuffer(commands, dstMem0, CL.CL_TRUE, 0, n * SIZEOF(FLOAT32), ADDRESSOF(dstArray0[0]), 0, 0, ADDRESSOF(readEvent0));
+	err := CL.EnqueueReadBuffer(commands, dstMem1, CL.CL_TRUE, 0, n * SIZEOF(FLOAT32), ADDRESSOF(dstArray1[0]), 0, 0, ADDRESSOF(readEvent1));
 
         (* Wait for the the events, i.e. until the results are read *)
         wr.String("Waiting for read events..."); wr.Ln; wr.Update;

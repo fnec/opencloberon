@@ -4,7 +4,7 @@ IMPORT CL := OpenCL,  KernelLog, Streams, Utils:=OpenCLUtils, Strings;
 CONST DATA_SIZE=32768;
 
 TYPE
-	RVector = POINTER TO ARRAY OF REAL;
+	RVector = POINTER TO ARRAY OF FLOAT32;
 
 
 VAR
@@ -29,7 +29,7 @@ END MyKernelSource;
 
 PROCEDURE Test*;
 VAR
-	err     : LONGINT; (* error code returned from api calls*)
+	err     : SIGNED32; (* error code returned from api calls*)
 
 	data    : RVector; (* original data set given to device *)
 	results : RVector; (* results returned from device *)
@@ -39,11 +39,11 @@ VAR
 
 	platformids  : POINTER TO ARRAY OF CL.cl_platform_id;
 	platform: CL.cl_platform_id;
-	nplatforms: LONGINT;
+	nplatforms: SIGNED32;
 
 	deviceids : POINTER TO ARRAY OF CL.cl_device_id;
 	deviceid : CL.cl_device_id;
-	ndevices: LONGINT;
+	ndevices: SIGNED32;
 
 	context : CL.cl_context;
 	commands : CL.cl_command_queue;
@@ -55,13 +55,13 @@ VAR
 	input   : CL.cl_mem;  (* device memory used for the input array *)
 	output  : CL.cl_mem;  (* device memory used for the output array *)
 
-	i, count : LONGINT;
-	correct: LONGINT;
-	tmpd: REAL;
+	i, count : SIGNED32;
+	correct: SIGNED32;
+	tmpd: FLOAT32;
 
 	buf:  ARRAY 1024 OF  CHAR;
-	bufwritten: LONGINT;
-	dumy: LONGINT;
+	bufwritten: SIGNED32;
+	dumy: SIGNED32;
 	adr: ADDRESS;
 	retsize: CL.size_t;
 BEGIN
@@ -148,7 +148,7 @@ BEGIN
 	wr.String("Prog Source: "); wr.Ln;
 	wr.String(buf); wr.Ln; wr.Update;
 
-	err := CL.GetProgramInfo(prog, CL.PROGRAM_NUM_DEVICES, SIZEOF(LONGINT), ADDRESSOF(dumy), bufwritten);
+	err := CL.GetProgramInfo(prog, CL.PROGRAM_NUM_DEVICES, SIZEOF(SIGNED32), ADDRESSOF(dumy), bufwritten);
 	wr.String("clGetProgramInfo : "); wr.String(Utils.GetError(err)); wr.Ln; wr.Update;
 	IF (err # CL.SUCCESS) THEN
 		wr.String("clGetProgramInfo Error: "); wr.String(Utils.GetError(err)); wr.Ln;
@@ -189,10 +189,10 @@ BEGIN
 	END;
 
 	(* Create the input and output arrays in device memory for our calculation *)
-	input := CL.CreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(REAL) * count, 0, err);
+	input := CL.CreateBuffer(context,  CL.MEM_READ_ONLY,  SIZEOF(FLOAT32) * count, 0, err);
 	wr.String("clCreateBuffer input  : "); wr.String(Utils.GetError(err)); wr.Ln;
 
-	output := CL.CreateBuffer(context, CL.MEM_WRITE_ONLY, SIZEOF(REAL) * count, 0, err);
+	output := CL.CreateBuffer(context, CL.MEM_WRITE_ONLY, SIZEOF(FLOAT32) * count, 0, err);
 	wr.String("clCreateBuffer output  : "); wr.String(Utils.GetError(err)); wr.Ln;
 
 	IF (input = 0) OR   (output = 0) THEN
@@ -201,7 +201,7 @@ BEGIN
 	END;
 
 	(* Write our data set into the input array in device memory *)
-	err := CL.EnqueueWriteBuffer(commands, input, CL.CL_TRUE, 0, SIZEOF(REAL) * count, ADDRESSOF(data[0]), 0, 0, 0);
+	err := CL.EnqueueWriteBuffer(commands, input, CL.CL_TRUE, 0, SIZEOF(FLOAT32) * count, ADDRESSOF(data[0]), 0, 0, 0);
 	wr.String("clEnqueueWriteBuffer : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to write source array!'); wr.Ln; wr.Update;
@@ -246,7 +246,7 @@ BEGIN
 	wr.String("clFinish : "); wr.String(Utils.GetError(err)); wr.Ln;
 
 	(* Read back the results from the device to verify the output *)
-	err := CL.EnqueueReadBuffer( commands, output, CL.CL_TRUE, 0, SIZEOF(REAL) * count, ADDRESSOF(results[0]), 0, 0, 0);
+	err := CL.EnqueueReadBuffer( commands, output, CL.CL_TRUE, 0, SIZEOF(FLOAT32) * count, ADDRESSOF(results[0]), 0, 0, 0);
 	wr.String("EnqueueReadBuffer : "); wr.String(Utils.GetError(err)); wr.Ln;
 	IF (err # CL.SUCCESS) THEN
 		wr.String('Error: Failed to read output array! '); wr.Ln; wr.Update;

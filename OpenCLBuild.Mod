@@ -61,7 +61,7 @@ TYPE
 			toolbar, statusbar: WMStandardComponents.Panel;
 			vsizer, hsizer : WMStandardComponents.Resizer;
 			grpanel, grplatform: WMStandardComponents.GroupPanel; (* groupbox panel *)
-			i, k: LONGINT;
+			i, k: SIGNED32;
 			str: ARRAY 1024 OF CHAR;
 			z: SIZE;
 	BEGIN
@@ -328,7 +328,7 @@ TYPE
 	(** read the kernel source code*)
 	PROCEDURE ReadThis*(sr: Streams.Reader);
 	VAR ks: ARRAY 1024 OF CHAR;
-		i: LONGINT;
+		i: SIGNED32;
 		ch: CHAR;
 	BEGIN
 		sr.SkipWhitespace();
@@ -347,7 +347,7 @@ TYPE
 	PROCEDURE CLBuild(sender, data : ANY);
 	VAR
 	      options: ARRAY 256 OF CHAR;
-	      err: LONGINT;
+	      err: SIGNED32;
 	      pbuf: ADDRESS;
      		prog      : CL.cl_program;       (* compute program *)
      		status: CL.cl_build_status;
@@ -406,7 +406,7 @@ TYPE
 	END Window;
 
 VAR
-	nofWindows : LONGINT;
+	nofWindows : SIGNED32;
 
 	platformids: CL.cl_platform_id;
 	deviceids : CL.cl_device_id;
@@ -419,7 +419,7 @@ VAR
 	log: ARRAY 1024 OF CHAR;
 
 PROCEDURE InitCL;
-VAR err, err1, err2, err3: LONGINT;
+VAR err, err1, err2, err3: SIGNED32;
 BEGIN
 	clinited := FALSE;
 	err := CL.GetPlatformIDs( 1, ADDRESSOF(platformids), 0 );
@@ -483,7 +483,7 @@ PROCEDURE Cleanup;
 VAR die : KillerMsg;
 	 msg : WMMessages.Message;
 	 m : WM.WindowManager;
-	 err: LONGINT;
+	 err: SIGNED32;
 BEGIN {EXCLUSIVE}
 	NEW(die);
 	msg.ext := die;

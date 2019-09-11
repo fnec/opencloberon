@@ -33,11 +33,11 @@ TYPE
 
 		platformids: POINTER TO ARRAY OF CL.cl_platform_id;
 		platform: CL.cl_platform_id;
-		nplatforms: LONGINT;
+		nplatforms: SIGNED32;
 
 		deviceids : POINTER TO ARRAY OF CL.cl_device_id;
 		deviceid: CL.cl_device_id;
-		ndevices: LONGINT;
+		ndevices: SIGNED32;
 
 		context : CL.cl_context;
 		commands : CL.cl_command_queue;
@@ -49,7 +49,7 @@ TYPE
 
 		kernelsource: Strings.String;
 
-		angle : REAL;
+		angle : FLOAT32;
 		inited : BOOLEAN;
 
 		globalWorkSize: ARRAY 2 OF CL.size_t;
@@ -84,8 +84,8 @@ TYPE
 
 		PROCEDURE InitCL(): BOOLEAN;
 		VAR
-			err: LONGINT;
-			imageSupport: LONGINT;
+			err: SIGNED32;
+			imageSupport: SIGNED32;
 			properties: CL.cl_queue_properties;
 
 		BEGIN
@@ -169,7 +169,7 @@ TYPE
 
 		 PROCEDURE initImageMem(inputImage0 :Raster.Image);
 		 VAR imageFormat: CL.cl_image_format;
-		 	err: LONGINT;
+		 	err: SIGNED32;
 		 BEGIN
 		        (* Create the memory object for the input- and output image *)
 
@@ -242,13 +242,13 @@ TYPE
 			END
 		END Handle;
 	
-		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: WORD);
+		PROCEDURE Draw(canvas : WMGraphics.Canvas; w, h: SIZE; q: INTEGER);
 		BEGIN
 			Draw^(canvas, w, h, 0)
 		END Draw;
 
 		PROCEDURE Close;
-		VAR err: LONGINT;
+		VAR err: SIGNED32;
 		BEGIN
 			BEGIN {EXCLUSIVE} alive := FALSE; animated := FALSE; AWAIT(endrotate) END;
 			(* Free resources *)
@@ -268,14 +268,14 @@ TYPE
 
 		(* calculate execution time for the event *)
 		PROCEDURE ExecutionTime(name: ARRAY OF CHAR; ke, re: CL.cl_event);
-		VAR ksec, rsec: LONGREAL;
-			err: LONGINT;
-			endtime, starttime: HUGEINT;
+		VAR ksec, rsec: FLOAT64;
+			err: SIGNED32;
+			endtime, starttime: SIGNED64;
 			stime: ARRAY 128 OF CHAR;
 		BEGIN
 			COPY(name, stitle);
-			err := CL.GetEventProfilingInfo(ke , CL.PROFILING_COMMAND_END, SIZEOF(HUGEINT), ADDRESSOF(endtime),0);
-			err := CL.GetEventProfilingInfo(ke, CL.PROFILING_COMMAND_START, SIZEOF(HUGEINT), ADDRESSOF(starttime), 0);
+			err := CL.GetEventProfilingInfo(ke , CL.PROFILING_COMMAND_END, SIZEOF(SIGNED64), ADDRESSOF(endtime),0);
+			err := CL.GetEventProfilingInfo(ke, CL.PROFILING_COMMAND_START, SIZEOF(SIGNED64), ADDRESSOF(starttime), 0);
 
 			ksec := 1.0D-3*(endtime-starttime);   (* ns -> us *)
 
@@ -283,8 +283,8 @@ TYPE
 			Strings.Append(stitle, stime);
 			Strings.Append(stitle, ", ");
 
-			err := CL.GetEventProfilingInfo(re , CL.PROFILING_COMMAND_END, SIZEOF(HUGEINT), ADDRESSOF(endtime),0);
-			err := CL.GetEventProfilingInfo(re, CL.PROFILING_COMMAND_START, SIZEOF(HUGEINT), ADDRESSOF(starttime), 0);
+			err := CL.GetEventProfilingInfo(re , CL.PROFILING_COMMAND_END, SIZEOF(SIGNED64), ADDRESSOF(endtime),0);
+			err := CL.GetEventProfilingInfo(re, CL.PROFILING_COMMAND_START, SIZEOF(SIGNED64), ADDRESSOF(starttime), 0);
 
 			rsec := 1.0D-3*(endtime-starttime);   (* ns -> us *)
 			Strings.FloatToStr(rsec, 0,1,0, stime);
@@ -293,8 +293,8 @@ TYPE
 		END ExecutionTime;
 
 		PROCEDURE RotateImage;
-		VAR err: LONGINT;
-			elapsed: LONGINT;
+		VAR err: SIGNED32;
+			elapsed: SIGNED32;
 			str1 : ARRAY 128 OF CHAR;
 			kernelEvent, readEvent: CL.cl_event;
 		BEGIN
@@ -350,7 +350,7 @@ TYPE
 		END RotateImage;
 
 		PROCEDURE SaveImage;
-		VAR res: LONGINT;
+		VAR res: SIGNED32;
 			fname: ARRAY 128 OF CHAR;
 		BEGIN
 		fname:="simpleimage.bmp";
@@ -370,7 +370,7 @@ TYPE
 
 VAR
 		out: Streams.Writer;
-		nofWindows: LONGINT;
+		nofWindows: SIGNED32;
 
 PROCEDURE Open*(ctx: Commands.Context);
 VAR fname: ARRAY 128 OF CHAR;

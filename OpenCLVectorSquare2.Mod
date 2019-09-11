@@ -4,7 +4,7 @@ IMPORT CL := OpenCL,  KernelLog, Streams, Utils:=OpenCLUtils;
 CONST DATA_SIZE=32768 ;
 
 TYPE
-	RVector = POINTER TO ARRAY OF REAL;
+	RVector = POINTER TO ARRAY OF FLOAT32;
 
 CONST kernelsource = 
  " kernel void square(global float* input, global float* output, const unsigned int count)
@@ -19,7 +19,7 @@ VAR
 
 PROCEDURE Test*;
 VAR
-	err     : LONGINT; (* error code returned from api calls*)
+	err     : SIGNED32; (* error code returned from api calls*)
 
 	data    : RVector; (* original data set given to device *)
 	results : RVector; (* results returned from device *)
@@ -37,9 +37,9 @@ VAR
 	input   : CL.cl_mem;  (* device memory used for the input array *)
 	output  : CL.cl_mem;  (* device memory used for the output array *)
 
-	i, count : LONGINT;
-	correct: LONGINT;
-	tmpd: REAL;
+	i, count : SIGNED32;
+	correct: SIGNED32;
+	tmpd: FLOAT32;
 
 	size, retsize: CL.size_t;
 BEGIN
@@ -86,7 +86,7 @@ BEGIN
 	END;
 
 	(* Create the input and output arrays in device memory for our calculation *)
-	size := SIZEOF(REAL) * count;
+	size := SIZEOF(FLOAT32) * count;
 	input := CL.CreateBuffer(context,  CL.MEM_READ_WRITE, size , 0, err);
 	wr.String("clCreateBuffer input  : "); wr.String(Utils.GetError(err)); wr.Ln;
 
