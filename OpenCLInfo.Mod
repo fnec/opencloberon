@@ -1,6 +1,6 @@
 MODULE OpenCLInfo; (** AUTHOR "fnecati"; PURPOSE "Prints OpenCL properties of GPU"; *)
 
-IMPORT CL:=OpenCL, S:=SYSTEM, KernelLog, Streams, Strings, Utils:=OpenCLUtils;
+IMPORT CL:=OpenCL, KernelLog, Streams, Strings, Utils:=OpenCLUtils;
 
 TYPE
 	Int3Array = ARRAY 3 OF CL.size_t;
@@ -23,10 +23,10 @@ VAR i, j, k: SIGNED32;
 	dumy: SIGNED32;
 	udumy: CL.cl_uint;
 	sdumy: CL.size_t;
-	hdumy: SIGNED64;
+	hdumy: CL.cl_bitfield;
 
 	memsize: CL.cl_ulong;
-	devtype: SIGNED64; (* CL.cl_bitfield *)
+	devtype: CL.cl_bitfield;
 	workitemsize: Int3Array;
 	nv_extension_query: BOOLEAN;
 
@@ -112,7 +112,7 @@ BEGIN
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_OPENCL_C_VERSION, LEN(buf), ADDRESSOF(buf[0]), 0);
 			wr.String("DEVICE_OPENCL_C_VERSION: "); wr.String(buf); wr.Ln;
 
-			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_TYPE,  SIZEOF(SIGNED64), ADDRESSOF(devtype), 0);
+			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_TYPE,  SIZEOF(CL.cl_bitfield), ADDRESSOF(devtype), 0);
 			wr.String("DEVICE_TYPE: ");
 			IF devtype = CL.DEVICE_TYPE_CPU THEN   wr.String("DEVICE_TYPE_CPU");
 			ELSIF  devtype = CL.DEVICE_TYPE_GPU THEN wr.String("DEVICE_TYPE_GPU");
@@ -141,10 +141,10 @@ BEGIN
 			wr.String("DEVICE_ADDRESS_BITS: "); wr.Int(udumy,0); wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_MEM_ALLOC_SIZE, SIZEOF(CL.cl_ulong), ADDRESSOF(memsize), 0);
-			wr.String("DEVICE_MAX_MEM_ALLOC_SIZE: "); wr.Int( memsize DIV (1024*1024), 0); wr.String(" MByte"); wr.Ln;
+			wr.String("DEVICE_MAX_MEM_ALLOC_SIZE: "); wr.Int( (memsize DIV (1024*1024))(INTEGER), 0); wr.String(" MByte"); wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_GLOBAL_MEM_SIZE, SIZEOF(CL.cl_ulong), ADDRESSOF(memsize), 0);
-			wr.String("DEVICE_GLOBAL_MEM_SIZE: "); wr.Int( memsize DIV (1024*1024), 0); wr.String(" MByte"); wr.Ln;
+			wr.String("DEVICE_GLOBAL_MEM_SIZE: "); wr.Int( (memsize DIV (1024*1024))(INTEGER), 0); wr.String(" MByte"); wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_ERROR_CORRECTION_SUPPORT, SIZEOF(SIGNED32), ADDRESSOF(dumy), 0);
 			wr.String("DEVICE_ERROR_CORRECTION_SUPPORT: "); IF dumy = CL.CL_FALSE THEN wr.String(" no"); ELSE wr.String(" yes"); END; wr.Ln;
@@ -153,15 +153,15 @@ BEGIN
 			wr.String("DEVICE_LOCAL_MEM_TYPE: "); IF udumy = CL.CL_TRUE THEN wr.String(" local"); ELSE wr.String(" global"); END; wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_LOCAL_MEM_SIZE,  SIZEOF(CL.cl_ulong), ADDRESSOF(memsize), 0);
-			wr.String("DEVICE_LOCAL_MEM_SIZE: "); wr.Int(memsize DIV 1024 , 0); wr.String(" KByte");  wr.Ln;
+			wr.String("DEVICE_LOCAL_MEM_SIZE: "); wr.Int((memsize DIV 1024)(INTEGER) , 0); wr.String(" KByte");  wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_MAX_CONSTANT_BUFFER_SIZE, SIZEOF(CL.cl_ulong), ADDRESSOF(memsize), 0);
-			wr.String("DEVICE_MAX_CONSTANT_BUFFER_SIZE: "); wr.Int( memsize DIV 1024, 0);  wr.String(" KByte");  wr.Ln;
+			wr.String("DEVICE_MAX_CONSTANT_BUFFER_SIZE: "); wr.Int( (memsize DIV 1024)(INTEGER), 0);  wr.String(" KByte");  wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_QUEUE_PROPERTIES, SIZEOF(CL.cl_bitfield), ADDRESSOF(hdumy), 0);
 
-			IF CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE IN S.VAL(SET,hdumy)  THEN wr.String("DEVICE_QUEUE_PROPERTIES: QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE"); END; wr.Ln;
-			IF CL.QUEUE_PROFILING_ENABLE IN S.VAL(SET,hdumy) THEN wr.String("DEVICE_QUEUE_PROPERTIES: QUEUE_PROFILING_ENABLE"); END; wr.Ln;
+			IF CL.QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE IN SET64(hdumy)  THEN wr.String("DEVICE_QUEUE_PROPERTIES: QUEUE_OUT_OF_ORDER_EXEC_MODE_ENABLE"); END; wr.Ln;
+			IF CL.QUEUE_PROFILING_ENABLE IN SET64(hdumy) THEN wr.String("DEVICE_QUEUE_PROPERTIES: QUEUE_PROFILING_ENABLE"); END; wr.Ln;
 
 			err:= CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE_SUPPORT, SIZEOF(SIGNED32), ADDRESSOF(dumy), 0);
 			wr.String("DEVICE_MAGE_SUPPORT: "); IF dumy=1 THEN wr.String(" true"); ELSE wr.String(" false"); END; wr.Ln;
@@ -174,12 +174,12 @@ BEGIN
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_SINGLE_FP_CONFIG, SIZEOF(CL.cl_bitfield), ADDRESSOF(hdumy), 0);
 			wr.String("DEVICE_SINGLE_FP_CONFIG: ");
-			IF CL.FP_DENORM IN S.VAL(SET,hdumy)  THEN wr.String(" denorms  "); END;
-			IF CL.FP_INF_NAN IN S.VAL(SET,hdumy)  THEN wr.String(" INF-quietNaNs  "); END;
-			IF CL.FP_ROUND_TO_NEAREST IN S.VAL(SET,hdumy)  THEN wr.String(" round-to-nearest  "); END;
-			IF CL.FP_ROUND_TO_ZERO IN S.VAL(SET,hdumy)  THEN wr.String(" round-to-zero  "); END;
-			IF CL.FP_ROUND_TO_INF IN S.VAL(SET,hdumy)  THEN wr.String(" round-to-inf  "); END;
-			IF CL.FP_FMA IN S.VAL(SET,hdumy)  THEN wr.String(" fma  "); END;
+			IF CL.FP_DENORM IN SET64(hdumy)  THEN wr.String(" denorms  "); END;
+			IF CL.FP_INF_NAN IN SET64(hdumy)  THEN wr.String(" INF-quietNaNs  "); END;
+			IF CL.FP_ROUND_TO_NEAREST IN SET64(hdumy)  THEN wr.String(" round-to-nearest  "); END;
+			IF CL.FP_ROUND_TO_ZERO IN SET64(hdumy)  THEN wr.String(" round-to-zero  "); END;
+			IF CL.FP_ROUND_TO_INF IN SET64(hdumy)  THEN wr.String(" round-to-inf  "); END;
+			IF CL.FP_FMA IN SET64(hdumy)  THEN wr.String(" fma  "); END;
 			wr.Ln;
 
 			err := CL.GetDeviceInfo(deviceids[j],CL.DEVICE_IMAGE2D_MAX_WIDTH, SIZEOF(CL.size_t), ADDRESSOF(sdumy), 0);

@@ -11,9 +11,9 @@ Compiler.Compile
 
 # Compile Utilities:
 Compiler.Compile 
-	opencloberon/OpenCLUtils.Mod 
-	opencloberon/OpenCLInfo.Mod 
-	opencloberon/OpenCLBuild.Mod 
+	opencloberon/OpenCLUtils.Mod
+	opencloberon/OpenCLInfo.Mod
+	opencloberon/OpenCLBuild.Mod
 	~
 
 # Demos:

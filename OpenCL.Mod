@@ -59,7 +59,7 @@ TYPE
 	cl_int* = SIGNED32; (*-2147483647..+2147483648;  *)
 	cl_uint* = UNSIGNED32;  (* 0..4294967295;  *)
 	cl_long* = SIGNED64; (* Int64;// 0..184467440773709551615;//-$8000000000000001..+$8000000000000000{9223372036854775808}; //typedef signed   __int64  cl_long; *)
-	cl_ulong* = SIGNED64; (* UNSIGNED64; *)
+	cl_ulong* = UNSIGNED64; (* UNSIGNED64; *)
 
 	cl_half* = SIGNED16;
 	cl_float* = FLOAT32;
@@ -872,7 +872,7 @@ TYPE
 	(*  VERSION_1_2 *)
 	TCreateImage* = PROCEDURE {PlatformCC} (context: cl_context;
 			flags: cl_mem_flags;
-			image_format: cl_image_format;
+			CONST image_format: cl_image_format;
 			image_desc: cl_image_desc;
 			host_ptr: ADDRESS;
 			VAR errcode_ret: cl_int): cl_mem;

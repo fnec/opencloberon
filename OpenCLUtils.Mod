@@ -55,18 +55,19 @@ VAR
 PROCEDURE LoadProgramSource*(fname: ARRAY OF CHAR; CONST header: ARRAY OF CHAR): Strings.String;
 VAR
      f: Files.File;
-      rider: Files.Rider;
-      str: Strings.String;
-      len: SIZE;
+     rider: Files.Rider;
+     str: Strings.String;
+     len, flen: SIZE;
 BEGIN
 	f := Files.Old(fname);
 	IF f # NIL THEN
+		flen := SIZE(f.Length());
 		len := Strings.Length(header);
-		NEW(str, f.Length()+1+len);
+		NEW(str, len  + flen + 1);
 		Strings.Append(str^, header);
 		Strings.AppendChar(str^,0AX);
 		f.Set(rider, 0);
-		f.ReadBytes(rider, str^, len, f.Length());
+		f.ReadBytes(rider, str^, len, flen);
 	END;	
 	RETURN str;
 END LoadProgramSource;
