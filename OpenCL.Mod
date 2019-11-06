@@ -1664,11 +1664,10 @@ VAR
 	GetExtensionFunctionAddress- : TGetExtensionFunctionAddress;
 
 PROCEDURE GetProcAddress*( lib: HostLibs.LibHandle;  CONST procName: ARRAY OF CHAR;  adr: ADDRESS );
-VAR res: BOOLEAN
+VAR res: BOOLEAN;
 BEGIN
 	res := HostLibs.GetProcedure(lib,  procName, adr);
 END GetProcAddress;
-
 
 PROCEDURE Init;
 VAR res: BOOLEAN;
